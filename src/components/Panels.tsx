@@ -10,10 +10,12 @@ import { area } from "@/game/core/geometry";
 import { isEmptyBundle } from "@/game/core/resources";
 import type { GameState, ResourceBundle, ResourceId, Room, RoomTypeId } from "@/game/core/types";
 import type { AccessInfo } from "@/game/systems/access";
-import { PHASE_NAMES } from "@/game/systems/phase";
+import { canModifyBase, PHASE_NAMES } from "@/game/systems/phase";
+import { canDoAction } from "@/game/systems/actions";
+import { population } from "@/game/systems/time";
 import * as space from "@/game/systems/space";
 import type { GameAction } from "@/game/state/reducer";
-import type { Mode, Selection } from "./uiTypes";
+import type { AskFn, Mode, Selection } from "./uiTypes";
 
 export function CostTag({ bundle, have, label }: { bundle: ResourceBundle; have?: GameState["resources"]; label?: string }) {
   if (isEmptyBundle(bundle)) return <span className="cost muted">{label ? `${label} 없음` : "무료"}</span>;
@@ -38,8 +40,19 @@ interface PanelProps {
   selection: Selection;
   setSelection: (s: Selection) => void;
   setMode: (m: Mode) => void;
-  run: (a: GameAction, msg: string) => void;
+  run: (a: GameAction, msg?: string) => void;
   goBuild: () => void;
+  ask: AskFn;
+}
+
+/** 정비 시간이 아닐 때 건설 관련 안내 */
+function BuildLockNote({ state }: { state: GameState }) {
+  if (canModifyBase(state)) return null;
+  return (
+    <div className="alert lock">
+      🔒 건설·배치·철거는 <b>정비 시간</b>에만 가능합니다. 지금은 {PHASE_NAMES[state.phase]} — 야간이 끝나면 정비 시간이 시작됩니다.
+    </div>
+  );
 }
 
 // ─────────────────── 거점 (선택 정보) ───────────────────
@@ -69,11 +82,24 @@ export function BasePanel(props: PanelProps) {
             {corridor ? "출입구와 이어진 통로입니다." : "출입구와 끊긴 공간입니다."}
           </p>
         )}
-        {t === "floor" && (
+        {t === "floor" && canModifyBase(state) && (
           <button className="btn" onClick={props.goBuild}>
             여기에 방 만들기 →
           </button>
         )}
+        {t === "floor" && !canModifyBase(state) && <p className="muted small-text">방은 정비 시간에 만들 수 있습니다.</p>}
+        {t === "debris" &&
+          (() => {
+            const chk = canDoAction(state, "clearDebris", { kind: "debris", pos: { x: selection.x, y: selection.y } });
+            return (
+              <>
+                {chk.ok ? <p className="small-text">{chk.preview}</p> : <p className="warn-text small-text">{chk.reason}</p>}
+                <button className="btn primary" disabled={!chk.ok} onClick={() => props.setMode({ kind: "clearDebris", pos: { x: selection.x, y: selection.y } })}>
+                  잔해 정리 (행동 1)
+                </button>
+              </>
+            );
+          })()}
         <button className="btn ghost" onClick={() => props.setSelection(null)}>
           선택 해제
         </button>
@@ -99,7 +125,7 @@ function Overview({ state, access, setSelection, goBuild }: PanelProps) {
           <span className="stat-label">시설</span>
         </div>
         <div className="stat">
-          <span className="stat-val">1</span>
+          <span className="stat-val">{population(state)}</span>
           <span className="stat-label">인원</span>
         </div>
       </div>
@@ -131,7 +157,8 @@ function Overview({ state, access, setSelection, goBuild }: PanelProps) {
   );
 }
 
-function RoomInfo({ state, access, room, setSelection, setMode, run, goBuild }: PanelProps & { room: Room }) {
+function RoomInfo({ state, access, room, setSelection, setMode, run, goBuild, ask }: PanelProps & { room: Room }) {
+  const canBuild = canModifyBase(state);
   const def = ROOM_TYPE_BY_ID[room.type];
   const [name, setName] = useState(room.name);
   const [newType, setNewType] = useState<RoomTypeId>(room.type);
@@ -182,11 +209,12 @@ function RoomInfo({ state, access, room, setSelection, setMode, run, goBuild }: 
         </ul>
       )}
 
+      <BuildLockNote state={state} />
       <div className="btn-row">
-        <button className="btn primary" onClick={goBuild}>
+        <button className="btn primary" disabled={!canBuild} onClick={goBuild}>
           시설 설치
         </button>
-        <button className="btn" onClick={() => setMode({ kind: "resizeRoom", roomId: room.id, rect: { ...room.rect } })}>
+        <button className="btn" disabled={!canBuild} onClick={() => setMode({ kind: "resizeRoom", roomId: room.id, rect: { ...room.rect } })}>
           크기 변경
         </button>
       </div>
@@ -231,12 +259,12 @@ function RoomInfo({ state, access, room, setSelection, setMode, run, goBuild }: 
           <CostTag bundle={del.refund} label="회수" />
           <button
             className="btn danger"
-            onClick={() => {
-              if (window.confirm(`'${room.name}'을(를) 철거할까요?`)) {
+            onClick={() =>
+              ask(`'${room.name}'을(를) 철거할까요? 건설 자재 일부만 돌려받습니다.`, () => {
                 run({ type: "DELETE_ROOM", roomId: room.id }, "방을 철거했습니다.");
                 setSelection(null);
-              }
-            }}
+              }, "철거")
+            }
           >
             방 철거
           </button>
@@ -257,6 +285,9 @@ function FacilityInfo({ state, room, facilityId, setSelection, setMode, run }: P
   const r = space.facilityRect(fac);
   const remove = space.canRemoveFacility(state, room.id, fac.id);
   const pct = Math.round((fac.durability / def.maxDurability) * 100);
+  const canBuild = canModifyBase(state);
+  const repairTarget = { kind: "facility" as const, roomId: room.id, facilityId: fac.id };
+  const repair = canDoAction(state, "repair", repairTarget);
 
   const effects: { label: string; value: string; stage: number }[] = [];
   if (def.power > 0) effects.push({ label: "전력 생산", value: `+${def.power}`, stage: 4 });
@@ -286,8 +317,26 @@ function FacilityInfo({ state, room, facilityId, setSelection, setMode, run }: P
         <div className="meter-track">
           <div className={`meter-fill ${pct > 60 ? "good" : pct > 30 ? "mid" : "bad"}`} style={{ width: `${pct}%` }} />
         </div>
-        <p className="muted small-text">내구도 감소·수리는 3단계에서 구현됩니다.</p>
+        <p className="muted small-text">시간에 따른 내구도 감소·고장은 3단계에서 구현됩니다.</p>
       </div>
+      {fac.durability < def.maxDurability && state.phase !== "maintenance" && (
+        <div className="repair-box">
+          <div className="btn-row">
+            <button
+              className="btn primary"
+              disabled={!repair.ok}
+              onClick={() => run({ type: "DO_ACTION", actionId: "repair", target: repairTarget })}
+            >
+              직접 수리 (행동 1)
+            </button>
+            {repair.ok && <span className="small-text">{repair.preview} · 부품 1</span>}
+          </div>
+          {!repair.ok && <p className="warn-text small-text">{repair.reason}</p>}
+        </div>
+      )}
+      {fac.durability < def.maxDurability && state.phase === "maintenance" && (
+        <p className="muted small-text">직접 수리는 행동이므로 오전·오후·야간에 할 수 있습니다. (정비 시간 시설 수리는 3단계)</p>
+      )}
       {effects.length > 0 && (
         <>
           <h4 className="section-title">설비 성능</h4>
@@ -305,8 +354,9 @@ function FacilityInfo({ state, room, facilityId, setSelection, setMode, run }: P
       )}
       {!def.fixed ? (
         <>
+          <BuildLockNote state={state} />
           <div className="btn-row">
-            <button className="btn" onClick={() => setMode({ kind: "moveFacility", roomId: room.id, facilityId: fac.id, pos: null, rotated: fac.rotated })}>
+            <button className="btn" disabled={!canBuild} onClick={() => setMode({ kind: "moveFacility", roomId: room.id, facilityId: fac.id, pos: null, rotated: fac.rotated })}>
               위치 이동
             </button>
             <button
@@ -350,8 +400,10 @@ function FacilityInfo({ state, room, facilityId, setSelection, setMode, run }: P
 export function BuildPanel({ state, selection, setSelection, setMode }: PanelProps) {
   const roomId = selection?.kind === "room" || selection?.kind === "facility" ? selection.roomId : null;
   const room = roomId ? space.getRoom(state, roomId) : undefined;
+  const canBuild = canModifyBase(state);
   return (
     <div className="panel-body">
+      <BuildLockNote state={state} />
       <h3 className="panel-title">방 만들기</h3>
       <p className="muted small-text">
         비용: 기본 자재 {RULES.room.baseMaterials} + 1칸당 {RULES.room.materialsPerTile} · 정리된 바닥에만 가능 · 최대 {RULES.room.maxArea}칸
@@ -359,7 +411,7 @@ export function BuildPanel({ state, selection, setSelection, setMode }: PanelPro
       <ul className="card-list">
         {ROOM_TYPES.map((t) => (
           <li key={t.id}>
-            <button className="card" onClick={() => setMode({ kind: "createRoom", roomType: t.id, anchor: null, rect: null, dragging: false })}>
+            <button className="card" disabled={!canBuild} onClick={() => setMode({ kind: "createRoom", roomType: t.id, anchor: null, rect: null, dragging: false })}>
               <span className="swatch big" style={{ background: t.color }} />
               <span className="card-main">
                 <span className="card-title">{t.name}</span>
@@ -404,6 +456,7 @@ export function BuildPanel({ state, selection, setSelection, setMode }: PanelPro
                 <li key={f.id}>
                   <button
                     className="card"
+                    disabled={!canBuild}
                     onClick={() => setMode({ kind: "placeFacility", roomId: room.id, facilityType: f.id, pos: null, rotated: false })}
                   >
                     <span className="glyph-box" style={{ borderColor: ROOM_TYPE_BY_ID[room.type].color }}>
@@ -449,13 +502,15 @@ export function ResourcePanel({ state }: { state: GameState }) {
               </td>
               <td className="num">{r.kind === "stock" ? state.resources[r.id] : "—"}</td>
               <td className="num muted">—</td>
-              <td className="num muted">—</td>
+              <td className="num">
+                {r.id in RULES.upkeepPerPerson ? `-${RULES.upkeepPerPerson[r.id as "food" | "water"] * population(state)}` : <span className="muted">—</span>}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
       <p className="muted small-text">
-        현재는 보유량과 건설 비용 차감만 작동합니다. 생산·소비·예상 잔여량 계산은 2~3단계에서, 전력 계산은 4단계에서 구현됩니다.
+        작동 중: 보유량, 건설 비용, 행동 획득, 인원의 식량·식수 소비(구간마다). 시설 생산·소비는 3단계, 전력 계산은 4단계에서 구현됩니다.
       </p>
     </div>
   );

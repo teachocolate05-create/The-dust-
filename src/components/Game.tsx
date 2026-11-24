@@ -13,10 +13,15 @@ import ModeBar from "./ModeBar";
 import { BasePanel, BuildPanel, LogPanel, ResourcePanel } from "./Panels";
 import StatusModal from "./StatusModal";
 import TopBar from "./TopBar";
-import type { Mode, Selection, Tab } from "./uiTypes";
+import ActionPanel from "./ActionPanel";
+import { AdvanceModal, ConfirmDialog, PhaseButton } from "./TimeControls";
+import { canDoAction } from "@/game/systems/actions";
+import { PHASE_NAMES } from "@/game/systems/phase";
+import type { AskFn, Mode, Selection, Tab } from "./uiTypes";
 
 const TABS: { id: Tab; label: string; planned?: string }[] = [
   { id: "base", label: "거점" },
+  { id: "actions", label: "행동" },
   { id: "build", label: "건설" },
   { id: "resources", label: "자원" },
   { id: "log", label: "기록" },
@@ -29,11 +34,14 @@ export default function Game() {
   const [ready, setReady] = useState(false);
   const [mode, setModeRaw] = useState<Mode>({ kind: "view" });
   const [selection, setSelection] = useState<Selection>(null);
-  const [tab, setTab] = useState<Tab>("base");
+  const [tab, setTab] = useState<Tab>("actions");
   const [tilePx, setTilePx] = useState(28);
   const [toast, setToast] = useState<{ text: string; kind: "ok" | "warn" } | null>(null);
   const [statusOpen, setStatusOpen] = useState(false);
   const [saveOk, setSaveOk] = useState(true);
+  const [advanceOpen, setAdvanceOpen] = useState(false);
+  const [confirmReq, setConfirmReq] = useState<{ text: string; yes: string; onYes: () => void } | null>(null);
+  const ask: AskFn = useCallback((text, onYes, yesLabel = "확인") => setConfirmReq({ text, yes: yesLabel, onYes }), []);
   const mapWrapRef = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -69,6 +77,28 @@ export default function Game() {
 
   const access = useMemo(() => computeAccess(state), [state]);
 
+  // 행동 결과 알림
+  const lastSerial = useRef<number | null>(null);
+  useEffect(() => {
+    const la = state.lastAction;
+    if (!ready || !la) return;
+    if (lastSerial.current !== null && la.serial !== lastSerial.current) showToast(`[${la.actionName}] ${la.text}`);
+    lastSerial.current = la.serial;
+  }, [state.lastAction, ready, showToast]);
+
+  // 구간이 바뀌면 진행 중이던 작업을 취소하고 알맞은 탭으로 이동
+  const prevPhase = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    const key = `${state.day}-${state.phase}`;
+    if (prevPhase.current !== null && prevPhase.current !== key) {
+      setModeRaw({ kind: "view" });
+      setTab(state.phase === "maintenance" ? "build" : "actions");
+      showToast(state.phase === "maintenance" ? "정비 시간이 시작되었습니다. 이제 건설할 수 있습니다." : `${state.day}일차 ${PHASE_NAMES[state.phase]}`);
+    }
+    prevPhase.current = key;
+  }, [state.day, state.phase, ready, showToast]);
+
   const setMode = useCallback((m: Mode) => {
     setModeRaw(m);
     if (m.kind === "resizeRoom" || m.kind === "placeFacility" || m.kind === "moveFacility")
@@ -76,9 +106,9 @@ export default function Game() {
   }, []);
 
   const run = useCallback(
-    (a: GameAction, msg: string) => {
+    (a: GameAction, msg?: string) => {
       dispatch(a);
-      showToast(msg);
+      if (msg) showToast(msg);
     },
     [showToast],
   );
@@ -94,6 +124,11 @@ export default function Game() {
         return mode.pos ? space.canMoveFacility(state, mode.roomId, mode.facilityId, mode.pos.x, mode.pos.y, mode.rotated) : null;
       case "resizeRoom":
         return space.canResizeRoom(state, mode.roomId, mode.rect);
+      case "clearDebris": {
+        if (!mode.pos) return null;
+        const c = canDoAction(state, "clearDebris", { kind: "debris", pos: mode.pos });
+        return c.ok ? { ok: true, cost: {}, refund: {} } : c;
+      }
       default:
         return null;
     }
@@ -101,7 +136,7 @@ export default function Game() {
 
   // 모드가 가리키는 방·시설이 사라지면 모드 해제
   useEffect(() => {
-    if (mode.kind !== "view" && mode.kind !== "createRoom" && !space.getRoom(state, mode.roomId)) setModeRaw({ kind: "view" });
+    if ("roomId" in mode && !space.getRoom(state, mode.roomId)) setModeRaw({ kind: "view" });
   }, [state, mode]);
 
   // ── 지도 입력 ──
@@ -118,6 +153,14 @@ export default function Game() {
       const room = state.rooms.find((r) => pointInRect(p, r.rect));
       setSelection(room ? { kind: "room", roomId: room.id } : { kind: "tile", x: p.x, y: p.y });
       setTab("base");
+      return;
+    }
+    if (mode.kind === "clearDebris") {
+      const same = mode.pos && mode.pos.x === p.x && mode.pos.y === p.y;
+      if (same && check?.ok) {
+        run({ type: "DO_ACTION", actionId: "clearDebris", target: { kind: "debris", pos: p } });
+        setModeRaw({ kind: "clearDebris", pos: null });
+      } else setModeRaw({ kind: "clearDebris", pos: p });
       return;
     }
     if (mode.kind === "placeFacility" || mode.kind === "moveFacility") {
@@ -139,7 +182,7 @@ export default function Game() {
     }
   };
   const onTileHover = (p: Point) => {
-    if ((mode.kind === "placeFacility" || mode.kind === "moveFacility") && (!mode.pos || mode.pos.x !== p.x || mode.pos.y !== p.y))
+    if ((mode.kind === "placeFacility" || mode.kind === "moveFacility" || mode.kind === "clearDebris") && (!mode.pos || mode.pos.x !== p.x || mode.pos.y !== p.y))
       setModeRaw({ ...mode, pos: p });
   };
   const onDragStart = (p: Point) => {
@@ -165,7 +208,9 @@ export default function Game() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (statusOpen) setStatusOpen(false);
+        if (confirmReq) setConfirmReq(null);
+        else if (advanceOpen) setAdvanceOpen(false);
+        else if (statusOpen) setStatusOpen(false);
         else if (mode.kind !== "view") setModeRaw({ kind: "view" });
         else setSelection(null);
       }
@@ -174,16 +219,21 @@ export default function Game() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [mode, statusOpen]);
+  }, [mode, statusOpen, advanceOpen, confirmReq]);
 
-  const newGame = () => {
-    if (!window.confirm("현재 진행 상황을 지우고 새 게임을 시작할까요?")) return;
+  const newGame = () =>
+    ask("현재 진행 상황을 지우고 새 게임을 시작할까요?", () => {
     clearSave();
     dispatch({ type: "NEW_GAME" });
     setModeRaw({ kind: "view" });
     setSelection(null);
     setTab("base");
     showToast("새 게임을 시작했습니다.");
+    }, "새 게임");
+
+  const advance = () => {
+    setAdvanceOpen(false);
+    dispatch(state.phase === "maintenance" ? { type: "START_NEXT_DAY" } : { type: "END_PHASE" });
   };
 
   const panelProps = {
@@ -194,6 +244,7 @@ export default function Game() {
     setMode,
     run,
     goBuild: () => setTab("build"),
+    ask,
   };
 
   if (!ready) {
@@ -212,8 +263,17 @@ export default function Game() {
         <section className="map-area">
           <div className="map-toolbar">
             <span className="phase-note">
-              <b>정비 시간</b> · 행동 횟수를 쓰지 않고 거점을 설계합니다
+              {state.phase === "maintenance" ? (
+                <>
+                  <b>정비 시간</b> · 행동 소비 없이 건설·배치
+                </>
+              ) : (
+                <>
+                  <b>{PHASE_NAMES[state.phase]}</b> · 남은 행동 {state.actionsLeft}회
+                </>
+              )}
             </span>
+            <PhaseButton state={state} onClick={() => setAdvanceOpen(true)} />
             <div className="zoom">
               <button className="btn small" onClick={() => setTilePx((z) => Math.max(14, z - 4))} aria-label="축소">
                 −
@@ -271,6 +331,7 @@ export default function Game() {
           </nav>
           <div className="panel">
             {tab === "base" && <BasePanel {...panelProps} />}
+            {tab === "actions" && <ActionPanel state={state} selection={selection} setMode={setMode} run={run} />}
             {tab === "build" && <BuildPanel {...panelProps} />}
             {tab === "resources" && <ResourcePanel state={state} />}
             {tab === "log" && <LogPanel state={state} />}
@@ -280,6 +341,10 @@ export default function Game() {
       </main>
       {toast && <div className={`toast toast-${toast.kind}`}>{toast.text}</div>}
       {statusOpen && <StatusModal onClose={() => setStatusOpen(false)} />}
+      {advanceOpen && <AdvanceModal state={state} onConfirm={advance} onClose={() => setAdvanceOpen(false)} />}
+      {confirmReq && (
+        <ConfirmDialog text={confirmReq.text} yesLabel={confirmReq.yes} onYes={confirmReq.onYes} onClose={() => setConfirmReq(null)} />
+      )}
     </div>
   );
 }

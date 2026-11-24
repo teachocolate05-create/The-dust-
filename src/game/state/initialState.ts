@@ -4,7 +4,7 @@ import { STARTING_RESOURCES } from "../config/resources";
 import { RULES } from "../config/rules";
 import type { FacilityTypeId, GameState, Rect, Room, RoomTypeId } from "../core/types";
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 // 시작 시 역사에 남아 있는 공간 (기획서 2-2, 2-3)
 interface PresetRoom {
@@ -35,7 +35,7 @@ const PRESET_ROOMS: PresetRoom[] = [
   },
 ];
 
-export function createInitialState(): GameState {
+export function createInitialState(seed: number = Date.now() % 2147483647): GameState {
   let nextId = 1;
   const rooms: Room[] = PRESET_ROOMS.map((p) => ({
     id: `room${nextId++}`,
@@ -55,17 +55,18 @@ export function createInitialState(): GameState {
   return {
     version: SAVE_VERSION,
     day: 1,
-    // 1단계에서는 시간 진행이 없으므로 첫날 정비 시간(거점 준비)에서 시작한다.
-    phase: "maintenance",
+    phase: "morning",
     actionsLeft: RULES.actionsPerPhase,
     resources: { ...STARTING_RESOURCES },
     map: parseLayout(STATION_LAYOUT),
     rooms,
     nextId,
+    seed,
+    lastAction: null,
     log: [
       {
         day: 1,
-        phase: "maintenance",
+        phase: "morning",
         kind: "info",
         text: "폐쇄된 환승역에 도착했다. 비상 발전기는 겨우 돌아가고, 남은 물자는 많지 않다.",
       },

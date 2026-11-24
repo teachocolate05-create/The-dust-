@@ -37,7 +37,17 @@ export function validateSave(data: any): data is GameState {
     }
   }
   if (!Array.isArray(data.log)) return false;
+  if (!isInt(data.seed)) return false;
+  if (data.lastAction !== null && typeof data.lastAction !== "object") return false;
   return true;
+}
+
+/** 예전 버전 저장 데이터를 현재 형식으로 바꾼다. (1단계 저장 → 2단계) */
+export function migrateSave(data: any): any {
+  if (data && data.version === 1) {
+    return { ...data, version: 2, seed: Date.now() % 2147483647, lastAction: null, actionsLeft: data.phase === "maintenance" ? 0 : data.actionsLeft };
+  }
+  return data;
 }
 
 export type LoadResult = { status: "ok"; state: GameState } | { status: "empty" } | { status: "corrupt" };
@@ -46,7 +56,7 @@ export function loadGame(): LoadResult {
   try {
     const raw = window.localStorage.getItem(SAVE_KEY);
     if (!raw) return { status: "empty" };
-    const data = JSON.parse(raw);
+    const data = migrateSave(JSON.parse(raw));
     return validateSave(data) ? { status: "ok", state: data } : { status: "corrupt" };
   } catch {
     return { status: "corrupt" };

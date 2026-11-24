@@ -1,5 +1,8 @@
 import type { FacilityTypeId, GameState, Rect, RoomTypeId } from "../core/types";
+import type { ActionId } from "../config/actions";
+import * as actions from "../systems/actions";
 import * as space from "../systems/space";
+import * as time from "../systems/time";
 import { createInitialState } from "./initialState";
 
 // 게임 상태를 바꾸는 유일한 통로. UI는 이 액션만 보낸다.
@@ -15,7 +18,10 @@ export type GameAction =
   | { type: "CHANGE_ROOM_TYPE"; roomId: string; roomType: RoomTypeId }
   | { type: "PLACE_FACILITY"; roomId: string; facilityType: FacilityTypeId; x: number; y: number; rotated: boolean }
   | { type: "MOVE_FACILITY"; roomId: string; facilityId: string; x: number; y: number; rotated: boolean }
-  | { type: "REMOVE_FACILITY"; roomId: string; facilityId: string };
+  | { type: "REMOVE_FACILITY"; roomId: string; facilityId: string }
+  | { type: "DO_ACTION"; actionId: ActionId; target?: actions.ActionTarget }
+  | { type: "END_PHASE" }
+  | { type: "START_NEXT_DAY" };
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
@@ -39,5 +45,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return space.moveFacility(state, action.roomId, action.facilityId, action.x, action.y, action.rotated);
     case "REMOVE_FACILITY":
       return space.removeFacility(state, action.roomId, action.facilityId);
+    case "DO_ACTION":
+      return actions.doAction(state, action.actionId, action.target);
+    case "END_PHASE":
+      return time.endPhase(state);
+    case "START_NEXT_DAY":
+      return time.startNextDay(state);
   }
 }

@@ -7,6 +7,7 @@ import { area } from "@/game/core/geometry";
 import { isEmptyBundle } from "@/game/core/resources";
 import type { Check, GameState, Rect, RoomTypeId } from "@/game/core/types";
 import * as space from "@/game/systems/space";
+import { canDoAction } from "@/game/systems/actions";
 import type { GameAction } from "@/game/state/reducer";
 import { CostTag } from "./Panels";
 import type { Mode, Selection } from "./uiTypes";
@@ -17,7 +18,7 @@ interface Props {
   check: Check | null;
   setMode: (m: Mode) => void;
   setSelection: (s: Selection) => void;
-  run: (a: GameAction, msg: string) => void;
+  run: (a: GameAction, msg?: string) => void;
 }
 
 // 지도 아래에 붙는 작업 안내 바. 현재 모드에서 할 일과 확인/취소 버튼을 보여준다.
@@ -136,6 +137,36 @@ export default function ModeBar({ state, mode, check, setMode, setSelection, run
           </button>
           <button className="btn ghost" onClick={cancel}>
             {mode.kind === "placeFacility" ? "완료" : "취소"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode.kind === "clearDebris") {
+    const chk = mode.pos ? canDoAction(state, "clearDebris", { kind: "debris", pos: mode.pos }) : null;
+    return (
+      <div className="mode-bar">
+        <div className="mode-head">
+          <span className="mode-title">잔해 정리</span>
+          <span className="muted">행동 1회 · 남은 행동 {state.actionsLeft}</span>
+        </div>
+        <p className="mode-hint">치울 잔해를 누르세요(누른 칸부터 오른쪽·아래 2×2). 같은 칸을 한 번 더 누르면 바로 정리합니다.</p>
+        {chk && (chk.ok ? <div className="mode-cost small-text">{chk.preview}</div> : <div className="mode-error">{chk.reason}</div>)}
+        <div className="btn-row">
+          <button
+            className="btn primary"
+            disabled={!chk?.ok}
+            onClick={() => {
+              if (!mode.pos) return;
+              run({ type: "DO_ACTION", actionId: "clearDebris", target: { kind: "debris", pos: mode.pos } });
+              setMode({ kind: "clearDebris", pos: null });
+            }}
+          >
+            정리
+          </button>
+          <button className="btn ghost" onClick={cancel}>
+            완료
           </button>
         </div>
       </div>

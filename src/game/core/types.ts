@@ -88,6 +88,19 @@ export interface GameState {
   rooms: Room[];
   nextId: number;
   log: LogEntry[];
+  /** 무작위 결과용 시드 (저장·불러오기 후에도 결과가 일관되도록 상태에 보관) */
+  seed: number;
+  /** 가장 최근 행동 결과 (화면 표시용) */
+  lastAction: ActionResult | null;
+}
+
+export interface ActionResult {
+  /** 결과마다 증가하는 번호 (화면에서 새 결과인지 판단) */
+  serial: number;
+  actionName: string;
+  text: string;
+  gained: ResourceBundle;
+  spent: ResourceBundle;
 }
 
 /** 규칙 검사 결과 */

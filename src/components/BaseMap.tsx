@@ -6,6 +6,7 @@ import { ROOM_TYPE_BY_ID } from "@/game/config/rooms";
 import type { GameState, Point, Rect, TileType } from "@/game/core/types";
 import type { AccessInfo } from "@/game/systems/access";
 import { facilityRect } from "@/game/systems/space";
+import { debrisArea } from "@/game/systems/actions";
 import type { Mode, Selection } from "./uiTypes";
 
 const S = 32; // SVG 내부 좌표계에서 타일 1칸 크기
@@ -246,11 +247,33 @@ export default function BaseMap(p: Props) {
         </g>
       );
     }
+  } else if (mode.kind === "clearDebris" && mode.pos) {
+    const r = debrisArea(state, mode.pos);
+    preview = (
+      <rect pointerEvents="none" x={r.x * S + 1} y={r.y * S + 1} width={r.w * S - 2} height={r.h * S - 2} fill={pc} fillOpacity={0.3} stroke={pc} strokeWidth={2.5} strokeDasharray="6 3" />
+    );
   } else if (mode.kind === "resizeRoom") {
     const r = mode.rect;
     preview = (
       <rect pointerEvents="none" x={r.x * S} y={r.y * S} width={r.w * S} height={r.h * S} fill={pc} fillOpacity={0.18} stroke={pc} strokeWidth={3} strokeDasharray="8 4" />
     );
+  }
+
+  // 잔해 정리 모드: 통로와 맞닿아 바로 치울 수 있는 잔해 표시
+  const debrisHints: React.ReactNode[] = [];
+  if (mode.kind === "clearDebris") {
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++)
+        if (
+          state.map[y][x] === "debris" &&
+          [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+          ].some(([dx, dy]) => access.corridor.has(`${x + dx},${y + dy}`))
+        )
+          debrisHints.push(<rect key={`dh${x},${y}`} x={x * S + 3} y={y * S + 3} width={S - 6} height={S - 6} fill="none" stroke="#f2c14e" strokeWidth={1.5} strokeDasharray="3 3" />);
   }
 
   const tileSel =
@@ -312,6 +335,9 @@ export default function BaseMap(p: Props) {
       <g>{rooms}</g>
       <g>{facilities}</g>
       <g>{labels}</g>
+      {mode.kind === "clearDebris" && <g pointerEvents="none">{debrisHints}</g>}
+      {state.phase === "night" && <rect pointerEvents="none" width={W * S} height={H * S} fill="#0b1636" opacity={0.32} />}
+      {state.phase === "afternoon" && <rect pointerEvents="none" width={W * S} height={H * S} fill="#6b3d10" opacity={0.08} />}
       {tileSel}
       {preview}
     </svg>

@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import { STATION_LAYOUT } from "@/game/config/map";
 import { createInitialState } from "@/game/state/initialState";
 import { gameReducer } from "@/game/state/reducer";
-import { validateSave } from "@/game/state/save";
+import { migrateSave, validateSave } from "@/game/state/save";
 import * as space from "@/game/systems/space";
 import { computeAccess } from "@/game/systems/access";
 import type { GameState } from "@/game/core/types";
 
-const fresh = () => createInitialState();
+// 건설 규칙 테스트는 정비 시간에서 진행
+const fresh = (): GameState => ({ ...createInitialState(1), phase: "maintenance", actionsLeft: 0 });
 
 describe("맵 설정", () => {
   it("모든 줄 길이가 같다", () => {
@@ -117,6 +118,7 @@ describe("저장 데이터 검증", () => {
     const s = fresh();
     expect(validateSave(JSON.parse(JSON.stringify(s)))).toBe(true);
     expect(validateSave({ ...s, version: 99 })).toBe(false);
+    expect(validateSave(migrateSave({ ...s, version: 1, seed: undefined, lastAction: undefined }))).toBe(true);
     expect(validateSave({ ...s, rooms: [{ id: "x" }] })).toBe(false);
     expect(validateSave(null)).toBe(false);
   });

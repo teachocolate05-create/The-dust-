@@ -3,6 +3,7 @@
 import { RESOURCES } from "@/game/config/resources";
 import type { GameState } from "@/game/core/types";
 import { PHASE_NAMES } from "@/game/systems/phase";
+import { RULES } from "@/game/config/rules";
 
 interface Props {
   state: GameState;
@@ -29,6 +30,13 @@ export default function TopBar({ state, onOpenStatus, onNewGame }: Props) {
               </li>
             ))}
           </ol>
+          {state.phase !== "maintenance" && (
+            <span className="pips" title="이번 구간 남은 행동">
+              {Array.from({ length: RULES.actionsPerPhase }, (_, i) => (
+                <i key={i} className={i < state.actionsLeft ? "pip on" : "pip"} />
+              ))}
+            </span>
+          )}
         </div>
         <div className="top-actions">
           <button className="btn ghost small" onClick={onOpenStatus}>
