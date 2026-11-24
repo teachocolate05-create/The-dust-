@@ -1105,3 +1105,99 @@ b {
     font-size: 8.5px;
   }
 }
+
+/* ───────── 3단계: 시설 운영 ───────── */
+.res-cap {
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.res-delta {
+  font-size: 10.5px;
+  font-weight: 700;
+  margin-left: 4px;
+}
+.res-delta.pos,
+.pos {
+  color: var(--ok);
+}
+.res-delta.neg,
+.neg {
+  color: #ff9a8a;
+}
+.res-chip.low {
+  border-color: #7a2c22;
+  background: #3a1a15;
+}
+.status-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: #ffffff12;
+  color: var(--text-dim);
+}
+.st-running {
+  background: #2f5a2f;
+  color: #d6f5d6;
+}
+.st-passive {
+  background: #ffffff10;
+}
+.st-off {
+  background: #4a4540;
+  color: #ddd;
+}
+.st-broken {
+  background: #7a2c22;
+  color: #ffd2c8;
+}
+.st-noFuel,
+.st-noPower {
+  background: #6b5220;
+  color: #f8e2b0;
+}
+.st-isolated {
+  background: #5a1f1a;
+  color: #ffd2c8;
+}
+.list-item.static {
+  cursor: default;
+}
+.table-wrap {
+  overflow-x: auto;
+}
+.power-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: #0006;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.power-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #c9a227, var(--res-power));
+}
+.card.static {
+  cursor: default;
+}
+.card.static:hover {
+  border-color: var(--line);
+}
+.card.dim {
+  opacity: 0.45;
+}
+.recipe-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.recipe-row .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: normal;
+  text-align: left;
+}

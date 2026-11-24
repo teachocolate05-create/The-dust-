@@ -252,7 +252,7 @@ export function placeFacility(
   const def = FACILITY_BY_ID[type];
   const [id, s1] = newId(state, "fac");
   const room = getRoom(s1, roomId)!;
-  const fac: Facility = { id, type, x, y, rotated, durability: def.maxDurability };
+  const fac: Facility = { id, type, x, y, rotated, durability: def.maxDurability, enabled: true };
   let s = replaceRoom(s1, { ...room, facilities: [...room.facilities, fac] });
   s = { ...s, resources: applyBundle(s.resources, check.cost, -1) };
   return withLog(s, `'${room.name}'에 ${def.name} 설치 (${bundleText(check.cost)} 사용)`);

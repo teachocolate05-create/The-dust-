@@ -29,7 +29,7 @@ export interface ActionDef {
   implemented: boolean;
   plannedStage?: number;
   /** 지도에서 대상을 골라야 하는 행동 */
-  needsTarget?: "debris" | "facility";
+  needsTarget?: "debris" | "facility" | "recipe";
   yields?: YieldTable;
 }
 
@@ -82,7 +82,23 @@ export const ACTIONS: ActionDef[] = [
     implemented: true,
     needsTarget: "facility",
   },
-  { id: "craft", name: "직접 제작", category: "작업", desc: "필요한 물품을 제작한다.", outside: false, implemented: false, plannedStage: 3 },
+  {
+    id: "craft",
+    name: "직접 제작",
+    category: "작업",
+    desc: "전력이 들어오는 작업대에서 자재를 가공해 필요한 물품을 만든다.",
+    outside: false,
+    implemented: true,
+    needsTarget: "recipe",
+  },
+];
+
+export type RecipeId = "parts" | "fuel";
+
+/** 직접 제작 목록 (작업대 필요) */
+export const RECIPES: { id: RecipeId; name: string; input: Partial<Record<ResourceId, number>>; output: Partial<Record<ResourceId, number>> }[] = [
+  { id: "parts", name: "부품 제작", input: { materials: 4 }, output: { parts: 1 } },
+  { id: "fuel", name: "고체 연료 만들기", input: { materials: 3 }, output: { fuel: 1 } },
 ];
 
 export const ACTION_BY_ID = Object.fromEntries(ACTIONS.map((a) => [a.id, a])) as Record<ActionId, ActionDef>;
@@ -106,4 +122,6 @@ export const ACTION_RULES = {
   /** 직접 수리: 부품 비용과 회복량 */
   repairParts: 1,
   repairAmount: 25,
+  /** 공구함이 있으면 직접 수리 회복량 추가 */
+  toolrackBonus: 10,
 };

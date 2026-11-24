@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { pointInRect, rectFromPoints } from "@/game/core/geometry";
 import type { Check, Point } from "@/game/core/types";
 import { computeAccess } from "@/game/systems/access";
+import { capacity } from "@/game/systems/operation";
+import { forecastPhaseEnd } from "@/game/systems/time";
 import * as space from "@/game/systems/space";
 import { createInitialState } from "@/game/state/initialState";
 import { gameReducer, type GameAction } from "@/game/state/reducer";
@@ -76,6 +78,9 @@ export default function Game() {
   }, [ready, fitZoom]);
 
   const access = useMemo(() => computeAccess(state), [state]);
+  const forecast = useMemo(() => forecastPhaseEnd(state), [state]);
+  const cap = useMemo(() => capacity(state), [state]);
+  const statuses = useMemo(() => Object.fromEntries(forecast.sim.reports.map((r) => [r.facilityId, r.status])), [forecast]);
 
   // 행동 결과 알림
   const lastSerial = useRef<number | null>(null);
@@ -245,6 +250,8 @@ export default function Game() {
     run,
     goBuild: () => setTab("build"),
     ask,
+    sim: forecast.sim,
+    cap,
   };
 
   if (!ready) {
@@ -258,7 +265,7 @@ export default function Game() {
 
   return (
     <div className="app">
-      <TopBar state={state} onOpenStatus={() => setStatusOpen(true)} onNewGame={newGame} />
+      <TopBar state={state} cap={cap} forecast={forecast} onOpenStatus={() => setStatusOpen(true)} onNewGame={newGame} />
       <main className="main">
         <section className="map-area">
           <div className="map-toolbar">
@@ -294,6 +301,7 @@ export default function Game() {
               selection={selection}
               tilePx={tilePx}
               previewOk={!!check?.ok}
+              statuses={statuses}
               onTileClick={onTileClick}
               onTileHover={onTileHover}
               onDragStart={onDragStart}
@@ -333,7 +341,7 @@ export default function Game() {
             {tab === "base" && <BasePanel {...panelProps} />}
             {tab === "actions" && <ActionPanel state={state} selection={selection} setMode={setMode} run={run} />}
             {tab === "build" && <BuildPanel {...panelProps} />}
-            {tab === "resources" && <ResourcePanel state={state} />}
+            {tab === "resources" && <ResourcePanel state={state} forecast={forecast} cap={cap} />}
             {tab === "log" && <LogPanel state={state} />}
           </div>
           {!saveOk && <div className="alert warn">이 브라우저에서는 자동 저장을 할 수 없습니다. (저장소 접근 차단)</div>}

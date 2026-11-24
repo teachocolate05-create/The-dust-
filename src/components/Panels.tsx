@@ -7,12 +7,13 @@ import { RESOURCE_BY_ID, RESOURCES } from "@/game/config/resources";
 import { ROOM_TYPE_BY_ID, ROOM_TYPES } from "@/game/config/rooms";
 import { RULES } from "@/game/config/rules";
 import { area } from "@/game/core/geometry";
-import { isEmptyBundle } from "@/game/core/resources";
+import { bundleText, isEmptyBundle } from "@/game/core/resources";
+import * as operation from "@/game/systems/operation";
 import type { GameState, ResourceBundle, ResourceId, Room, RoomTypeId } from "@/game/core/types";
 import type { AccessInfo } from "@/game/systems/access";
 import { canModifyBase, PHASE_NAMES } from "@/game/systems/phase";
 import { canDoAction } from "@/game/systems/actions";
-import { population } from "@/game/systems/time";
+import { population, type PhaseForecast } from "@/game/systems/time";
 import * as space from "@/game/systems/space";
 import type { GameAction } from "@/game/state/reducer";
 import type { AskFn, Mode, Selection } from "./uiTypes";
@@ -43,6 +44,8 @@ interface PanelProps {
   run: (a: GameAction, msg?: string) => void;
   goBuild: () => void;
   ask: AskFn;
+  sim: operation.PeriodSim;
+  cap: Record<ResourceId, number>;
 }
 
 /** 정비 시간이 아닐 때 건설 관련 안내 */
@@ -279,7 +282,7 @@ function RoomInfo({ state, access, room, setSelection, setMode, run, goBuild, as
   );
 }
 
-function FacilityInfo({ state, room, facilityId, setSelection, setMode, run }: PanelProps & { room: Room; facilityId: string }) {
+function FacilityInfo({ state, room, facilityId, setSelection, setMode, run, sim, cap, ask }: PanelProps & { room: Room; facilityId: string }) {
   const fac = room.facilities.find((f) => f.id === facilityId)!;
   const def = FACILITY_BY_ID[fac.type];
   const r = space.facilityRect(fac);
@@ -288,20 +291,33 @@ function FacilityInfo({ state, room, facilityId, setSelection, setMode, run }: P
   const canBuild = canModifyBase(state);
   const repairTarget = { kind: "facility" as const, roomId: room.id, facilityId: fac.id };
   const repair = canDoAction(state, "repair", repairTarget);
+  const maintRepair = operation.canRepairFacility(state, room.id, fac.id);
+  const rep = sim.byId[fac.id];
+  const eff = operation.efficiency(fac);
 
-  const effects: { label: string; value: string; stage: number }[] = [];
-  if (def.power > 0) effects.push({ label: "전력 생산", value: `+${def.power}`, stage: 4 });
-  if (def.power < 0) effects.push({ label: "전력 소비", value: `${-def.power}`, stage: 4 });
+  // 철거하면 줄어드는 저장 용량 때문에 버려질 자원
+  const lostOnRemove: ResourceBundle = {};
+  for (const [k, v] of Object.entries(def.storage) as [ResourceId, number][]) {
+    const over = state.resources[k] - (cap[k] - v);
+    if (over > 0) lostOnRemove[k] = over;
+  }
+
+  const effects: { label: string; value: string; note?: string }[] = [];
+  if (def.power > 0) effects.push({ label: "전력 생산", value: `최대 ${def.power}`, note: rep?.status === "running" ? `현재 ${rep.powerOut}` : undefined });
+  if (def.power < 0) effects.push({ label: "전력 필요", value: `${-def.power}` });
   for (const k of Object.keys(def.produces) as ResourceId[])
-    effects.push({ label: `${RESOURCE_BY_ID[k].name} 생산`, value: `+${def.produces[k]}/구간`, stage: 3 });
-  for (const k of Object.keys(def.consumes) as ResourceId[])
-    effects.push({ label: `${RESOURCE_BY_ID[k].name} 소비`, value: `${def.consumes[k]}/구간`, stage: 3 });
-  if (def.beds) effects.push({ label: "침상", value: `${def.beds}`, stage: 5 });
-  if (def.storage) effects.push({ label: "저장 용량", value: `+${def.storage}`, stage: 3 });
+    effects.push({ label: `${RESOURCE_BY_ID[k].name} 생산`, value: `최대 +${def.produces[k]}/구간`, note: rep?.status === "running" ? `현재 +${rep.produced[k] ?? 0}` : undefined });
+  for (const k of Object.keys(def.consumes) as ResourceId[]) effects.push({ label: `${RESOURCE_BY_ID[k].name} 소비`, value: `${def.consumes[k]}/구간` });
+  for (const k of Object.keys(def.storage) as ResourceId[]) effects.push({ label: `${RESOURCE_BY_ID[k].name} 저장`, value: `+${def.storage[k]}` });
+  if (def.decay) effects.push({ label: "가동 시 마모", value: `내구도 -${def.decay}/구간` });
+  if (def.beds) effects.push({ label: "침상", value: `${def.beds}`, note: "수용 인원은 5단계" });
 
   return (
     <div className="panel-body">
-      <h3 className="panel-title">{def.name}</h3>
+      <div className="panel-title-row spread">
+        <h3 className="panel-title">{def.name}</h3>
+        {rep && <span className={`status-pill st-${rep.status}`}>{operation.STATUS_LABEL[rep.status]}</span>}
+      </div>
       <p className="muted">
         {room.name} · 크기 {r.w}×{r.h}
         {def.fixed && " · 고정 설비"}
@@ -309,24 +325,37 @@ function FacilityInfo({ state, room, facilityId, setSelection, setMode, run }: P
       <p className="small-text">{def.desc}</p>
       <div className="meter">
         <div className="meter-label">
-          <span>내구도</span>
+          <span>내구도 · 효율 {Math.round(eff * 100)}%</span>
           <span>
             {fac.durability}/{def.maxDurability}
           </span>
         </div>
         <div className="meter-track">
-          <div className={`meter-fill ${pct > 60 ? "good" : pct > 30 ? "mid" : "bad"}`} style={{ width: `${pct}%` }} />
+          <div className={`meter-fill ${pct > 60 ? "good" : pct >= 25 ? "mid" : "bad"}`} style={{ width: `${pct}%` }} />
         </div>
-        <p className="muted small-text">시간에 따른 내구도 감소·고장은 3단계에서 구현됩니다.</p>
+        {def.operates && (
+          <p className="muted small-text">
+            내구도 50% 이상 효율 100% · 25% 이상 75% · 그 아래 50%이며 고장 위험이 있습니다. 0이 되면 고장.
+          </p>
+        )}
       </div>
+
+      {def.operates && (
+        <div className="btn-row">
+          <button
+            className={`btn ${fac.enabled ? "" : "primary"}`}
+            onClick={() => run({ type: "TOGGLE_FACILITY", roomId: room.id, facilityId: fac.id }, fac.enabled ? `${def.name}을(를) 정지했습니다.` : `${def.name}을(를) 가동합니다.`)}
+          >
+            {fac.enabled ? "정지" : "가동"}
+          </button>
+          <span className="muted small-text">언제든 켜고 끌 수 있습니다. 정지 중에는 자원을 쓰지 않고 닳지 않습니다.</span>
+        </div>
+      )}
+
       {fac.durability < def.maxDurability && state.phase !== "maintenance" && (
         <div className="repair-box">
           <div className="btn-row">
-            <button
-              className="btn primary"
-              disabled={!repair.ok}
-              onClick={() => run({ type: "DO_ACTION", actionId: "repair", target: repairTarget })}
-            >
+            <button className="btn primary" disabled={!repair.ok} onClick={() => run({ type: "DO_ACTION", actionId: "repair", target: repairTarget })}>
               직접 수리 (행동 1)
             </button>
             {repair.ok && <span className="small-text">{repair.preview} · 부품 1</span>}
@@ -335,8 +364,18 @@ function FacilityInfo({ state, room, facilityId, setSelection, setMode, run }: P
         </div>
       )}
       {fac.durability < def.maxDurability && state.phase === "maintenance" && (
-        <p className="muted small-text">직접 수리는 행동이므로 오전·오후·야간에 할 수 있습니다. (정비 시간 시설 수리는 3단계)</p>
+        <div className="repair-box">
+          <div className="btn-row">
+            <button className="btn primary" disabled={!maintRepair.ok} onClick={() => run({ type: "REPAIR_FACILITY", roomId: room.id, facilityId: fac.id }, `${def.name} 수리 완료`)}>
+              정비 수리 (최대까지)
+            </button>
+            {maintRepair.ok && <CostTag bundle={maintRepair.cost} have={state.resources} label="비용" />}
+          </div>
+          {!maintRepair.ok && <p className="warn-text small-text">{maintRepair.reason}</p>}
+          <p className="muted small-text">정비 수리는 행동을 쓰지 않는 대신 부품이 더 듭니다(내구도 20당 부품 1).</p>
+        </div>
       )}
+
       {effects.length > 0 && (
         <>
           <h4 className="section-title">설비 성능</h4>
@@ -346,7 +385,7 @@ function FacilityInfo({ state, room, facilityId, setSelection, setMode, run }: P
                 <span>{e.label}</span>
                 <span className="grow" />
                 <b>{e.value}</b>
-                <span className="badge badge-todo">{e.stage}단계 적용</span>
+                {e.note && <span className="badge badge-todo">{e.note}</span>}
               </li>
             ))}
           </ul>
@@ -376,8 +415,13 @@ function FacilityInfo({ state, room, facilityId, setSelection, setMode, run }: P
               <button
                 className="btn danger"
                 onClick={() => {
-                  run({ type: "REMOVE_FACILITY", roomId: room.id, facilityId: fac.id }, `${def.name}을(를) 철거했습니다.`);
-                  setSelection({ kind: "room", roomId: room.id });
+                  const go = () => {
+                    run({ type: "REMOVE_FACILITY", roomId: room.id, facilityId: fac.id }, `${def.name}을(를) 철거했습니다.`);
+                    setSelection({ kind: "room", roomId: room.id });
+                  };
+                  if (Object.keys(lostOnRemove).length)
+                    ask(`철거하면 저장 공간이 줄어 ${bundleText(lostOnRemove)}을(를) 버리게 됩니다. 철거할까요?`, go, "철거");
+                  else go();
                 }}
               >
                 철거
@@ -481,37 +525,88 @@ export function BuildPanel({ state, selection, setSelection, setMode }: PanelPro
 
 // ─────────────────── 자원 ───────────────────
 
-export function ResourcePanel({ state }: { state: GameState }) {
+export function ResourcePanel({ state, forecast, cap }: { state: GameState; forecast: PhaseForecast; cap: Record<ResourceId, number> }) {
+  const day = state.phase !== "maintenance";
+  const { supply, demand, used } = forecast.sim.power;
+  const machines = forecast.sim.reports.filter((r) => FACILITY_BY_ID[r.type].operates);
   return (
     <div className="panel-body">
-      <h3 className="panel-title">창고 재고</h3>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>자원</th>
-            <th className="num">보유</th>
-            <th className="num">구간 생산</th>
-            <th className="num">구간 소비</th>
-          </tr>
-        </thead>
-        <tbody>
-          {RESOURCES.map((r) => (
-            <tr key={r.id}>
-              <td>
-                <span className={`res-dot res-${r.id}`} /> {r.name}
-              </td>
-              <td className="num">{r.kind === "stock" ? state.resources[r.id] : "—"}</td>
-              <td className="num muted">—</td>
-              <td className="num">
-                {r.id in RULES.upkeepPerPerson ? `-${RULES.upkeepPerPerson[r.id as "food" | "water"] * population(state)}` : <span className="muted">—</span>}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <h3 className="panel-title">자원 현황</h3>
       <p className="muted small-text">
-        작동 중: 보유량, 건설 비용, 행동 획득, 인원의 식량·식수 소비(구간마다). 시설 생산·소비는 3단계, 전력 계산은 4단계에서 구현됩니다.
+        {day ? `이번 ${PHASE_NAMES[state.phase]} 구간이 끝날 때 예상되는 변화입니다.` : "정비 시간에는 소비가 없습니다. 아래는 내일 오전 기준 예상입니다."}
       </p>
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>자원</th>
+              <th className="num">보유/최대</th>
+              <th className="num">생산</th>
+              <th className="num">소비</th>
+              <th className="num">예상</th>
+            </tr>
+          </thead>
+          <tbody>
+            {RESOURCES.filter((r) => r.kind === "stock").map((r) => {
+              const prod = forecast.sim.production[r.id] ?? 0;
+              const use = (forecast.sim.facilityUse[r.id] ?? 0) + (RULES.upkeepPerPerson[r.id as "food" | "water"] ?? 0) * population(state);
+              const after = Math.max(0, Math.min(state.resources[r.id] + prod - use, Math.max(cap[r.id], state.resources[r.id])));
+              const full = state.resources[r.id] >= cap[r.id];
+              return (
+                <tr key={r.id} className={forecast.shortage[r.id] ? "row-bad" : ""}>
+                  <td>
+                    <span className={`res-dot res-${r.id}`} /> {r.name}
+                  </td>
+                  <td className={`num ${full ? "warn-text" : ""}`}>
+                    {state.resources[r.id]}/{cap[r.id]}
+                  </td>
+                  <td className={`num ${prod ? "pos" : "muted"}`}>{prod ? `+${prod}` : "—"}</td>
+                  <td className={`num ${use ? "neg" : "muted"}`}>{use ? `-${use}` : "—"}</td>
+                  <td className="num">{after}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <h4 className="section-title">전력</h4>
+      <div className="power-bar" aria-label={`전력 사용 ${used} / 발전 ${supply}`}>
+        <div className="power-fill" style={{ width: supply ? `${Math.min(100, (used / supply) * 100)}%` : "0%" }} />
+      </div>
+      <p className="small-text">
+        발전 <b>{supply}</b> · 필요 <b>{demand}</b> · 공급 <b>{used}</b>
+        {demand > used && <span className="warn-text"> — 전력 부족, 일부 시설이 멈춥니다.</span>}
+        {supply > 0 && demand === 0 && <span className="muted"> — 전력을 쓰는 시설이 없습니다.</span>}
+      </p>
+      <p className="muted small-text">지금은 발전량 전체를 모든 시설이 나눠 씁니다. 전력선 연결이 필요한 방식은 4단계에서 추가됩니다.</p>
+
+      <h4 className="section-title">가동 시설</h4>
+      {machines.length === 0 ? (
+        <p className="muted small-text">가동하는 기계가 없습니다.</p>
+      ) : (
+        <ul className="list">
+          {machines.map((m) => {
+            const def = FACILITY_BY_ID[m.type];
+            const room = state.rooms.find((r) => r.id === m.roomId)!;
+            const parts: string[] = [];
+            if (m.powerOut) parts.push(`전력 +${m.powerOut}`);
+            if (m.powerIn) parts.push(`전력 -${m.powerIn}`);
+            if (Object.keys(m.produced).length) parts.push(`+${bundleText(m.produced)}`);
+            if (Object.keys(m.consumed).length) parts.push(`-${bundleText(m.consumed)}`);
+            return (
+              <li key={m.facilityId} className="list-item static">
+                <span className="grow">
+                  {def.name} <span className="muted">· {room.name}</span>
+                  {parts.length > 0 && <span className="muted small-text"> · {parts.join(", ")}</span>}
+                </span>
+                <span className={`status-pill st-${m.status}`}>{operation.STATUS_LABEL[m.status]}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="muted small-text">저장 공간을 넘는 자원은 버려집니다. 창고·탱크·사물함 같은 시설로 최대 저장량을 늘리세요.</p>
     </div>
   );
 }

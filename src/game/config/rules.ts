@@ -9,6 +9,21 @@ export const RULES = {
   /** 남은 양이 이 구간 수 이하로 버티면 경고 */
   lowStockPeriods: 3,
 
+  facility: {
+    /** 내구도 비율에 따른 효율: [이 비율 이상, 효율] 위에서부터 검사 */
+    efficiencySteps: [
+      [0.5, 1],
+      [0.25, 0.75],
+      [0.01, 0.5],
+    ] as [number, number][],
+    /** 내구도가 이 비율 미만이면 구간마다 고장 위험 */
+    riskBelow: 0.25,
+    /** 고장 위험 구간에서 실제로 고장 날 확률 */
+    breakdownChance: 0.2,
+    /** 정비 시간 수리: 부품 1개당 회복하는 내구도 */
+    repairPerPart: 20,
+  },
+
   room: {
     /** 방 1개를 만들 때 기본 자재 */
     baseMaterials: 4,

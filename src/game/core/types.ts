@@ -58,6 +58,8 @@ export interface Facility {
   /** 90도 회전 여부 (가로·세로 크기 교환) */
   rotated: boolean;
   durability: number;
+  /** 가동 스위치 (가동하는 기계만 의미 있음) */
+  enabled: boolean;
 }
 
 export interface Room {

@@ -34,6 +34,7 @@ export function validateSave(data: any): data is GameState {
     for (const f of room.facilities) {
       if (typeof f?.id !== "string" || !FACILITY_BY_ID[f.type as keyof typeof FACILITY_BY_ID]) return false;
       if (!isInt(f.x) || !isInt(f.y) || typeof f.rotated !== "boolean" || typeof f.durability !== "number") return false;
+      if (typeof f.enabled !== "boolean") return false;
     }
   }
   if (!Array.isArray(data.log)) return false;
@@ -42,10 +43,21 @@ export function validateSave(data: any): data is GameState {
   return true;
 }
 
-/** 예전 버전 저장 데이터를 현재 형식으로 바꾼다. (1단계 저장 → 2단계) */
+/** 예전 버전 저장 데이터를 현재 형식으로 바꾼다. (1단계 → 2단계 → 3단계) */
 export function migrateSave(data: any): any {
   if (data && data.version === 1) {
-    return { ...data, version: 2, seed: Date.now() % 2147483647, lastAction: null, actionsLeft: data.phase === "maintenance" ? 0 : data.actionsLeft };
+    data = { ...data, version: 2, seed: Date.now() % 2147483647, lastAction: null, actionsLeft: data.phase === "maintenance" ? 0 : data.actionsLeft };
+  }
+  // 2단계 → 3단계: 시설 가동 스위치 추가
+  if (data && data.version === 2 && Array.isArray(data.rooms)) {
+    data = {
+      ...data,
+      version: 3,
+      rooms: data.rooms.map((r: any) => ({
+        ...r,
+        facilities: Array.isArray(r?.facilities) ? r.facilities.map((f: any) => ({ enabled: true, ...f })) : r?.facilities,
+      })),
+    };
   }
   return data;
 }

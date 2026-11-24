@@ -8,6 +8,7 @@ import type { AccessInfo } from "@/game/systems/access";
 import { facilityRect } from "@/game/systems/space";
 import { debrisArea } from "@/game/systems/actions";
 import type { Mode, Selection } from "./uiTypes";
+import type { FacilityStatus } from "@/game/systems/operation";
 
 const S = 32; // SVG 내부 좌표계에서 타일 1칸 크기
 
@@ -20,6 +21,8 @@ interface Props {
   tilePx: number;
   /** 미리보기가 규칙에 맞는지 (초록/빨강 표시용) */
   previewOk: boolean;
+  /** 시설별 가동 상태 */
+  statuses: Record<string, FacilityStatus>;
   onTileClick: (p: Point) => void;
   onTileHover: (p: Point) => void;
   onDragStart: (p: Point) => void;
@@ -197,6 +200,7 @@ export default function BaseMap(p: Props) {
           selected={sel}
           faded={moving}
           fixed={def.fixed}
+          status={p.statuses[f.id]}
         />
       );
     }),
@@ -369,8 +373,9 @@ function FacilityShape(props: {
   selected: boolean;
   faded: boolean;
   fixed: boolean;
+  status?: FacilityStatus;
 }) {
-  const { rect: r, glyph, color, durability, selected, faded, fixed } = props;
+  const { rect: r, glyph, color, durability, selected, faded, fixed, status } = props;
   const x = r.x * S + 4;
   const y = r.y * S + 4;
   const w = r.w * S - 8;
@@ -384,12 +389,39 @@ function FacilityShape(props: {
       <text x={x + w / 2} y={y + h / 2 + 4} textAnchor="middle" fontSize={Math.min(11, 6 + w / 8)} fontWeight={700} fill="#efe6d2">
         {glyph}
       </text>
+      {status && status !== "passive" && status !== "isolated" && <StatusBadge x={x} y={y} status={status} />}
+      {status === "broken" && (
+        <path d={`M${x + 6} ${y + 6} L${x + w - 6} ${y + h - 6} M${x + w - 6} ${y + 6} L${x + 6} ${y + h - 6}`} stroke="#e0604f" strokeWidth={2} opacity={0.7} />
+      )}
       {durability < 1 && (
         <g>
           <rect x={x + 3} y={y + h - 6} width={w - 6} height={3} fill="#00000088" />
           <rect x={x + 3} y={y + h - 6} width={(w - 6) * durability} height={3} fill={barColor} />
         </g>
       )}
+    </g>
+  );
+}
+
+function StatusBadge({ x, y, status }: { x: number; y: number; status: FacilityStatus }) {
+  const cx = x + 1;
+  const cy = y + 1;
+  if (status === "running")
+    return <circle cx={cx + 5} cy={cy + 5} r={3.5} fill="#7ed47e" stroke="#0b1a0b" strokeWidth={1} />;
+  const map: Partial<Record<FacilityStatus, { fill: string; text: string }>> = {
+    off: { fill: "#6b655c", text: "Ⅱ" },
+    broken: { fill: "#e0604f", text: "✕" },
+    noFuel: { fill: "#e3a341", text: "연" },
+    noPower: { fill: "#e8c547", text: "⚡" },
+  };
+  const m = map[status];
+  if (!m) return null;
+  return (
+    <g>
+      <rect x={cx} y={cy} width={13} height={13} rx={3} fill={m.fill} stroke="#000" strokeWidth={1} />
+      <text x={cx + 6.5} y={cy + 10} textAnchor="middle" fontSize={8.5} fontWeight={800} fill="#15110b">
+        {m.text}
+      </text>
     </g>
   );
 }

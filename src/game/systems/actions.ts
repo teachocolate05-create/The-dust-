@@ -1,6 +1,6 @@
 // 행동 시스템: 오전·오후·야간에 행동 횟수를 1회씩 소비해 수행하는 현장 활동.
 
-import { ACTION_BY_ID, ACTION_RULES, EXPLORE_TABLE, type ActionId, type YieldTable } from "../config/actions";
+import { ACTION_BY_ID, ACTION_RULES, EXPLORE_TABLE, RECIPES, type ActionId, type RecipeId, type YieldTable } from "../config/actions";
 import { FACILITY_BY_ID } from "../config/facilities";
 import { RESOURCE_BY_ID } from "../config/resources";
 import { RULES } from "../config/rules";
@@ -8,9 +8,17 @@ import { pickWeighted, randomInt } from "../core/random";
 import { applyBundle, bundleText, canAfford, missingText } from "../core/resources";
 import type { ActionResult, GameState, LogEntry, Point, Rect, ResourceBundle, ResourceId } from "../core/types";
 import { computeAccess } from "./access";
+import { addCapped, hasWorking } from "./operation";
 import { isDayPhase, PHASE_NAMES } from "./phase";
 
-export type ActionTarget = { kind: "debris"; pos: Point } | { kind: "facility"; roomId: string; facilityId: string };
+export type ActionTarget =
+  | { kind: "debris"; pos: Point }
+  | { kind: "facility"; roomId: string; facilityId: string }
+  | { kind: "recipe"; recipeId: RecipeId };
+
+export function repairAmount(state: GameState): number {
+  return ACTION_RULES.repairAmount + (hasWorking(state, "toolrack") ? ACTION_RULES.toolrackBonus : 0);
+}
 
 export type ActionCheck = { ok: true; cost: ResourceBundle; preview: string } | { ok: false; reason: string };
 
@@ -76,8 +84,17 @@ export function canDoAction(state: GameState, id: ActionId, target?: ActionTarge
     if (fac.durability >= max) return no("이미 내구도가 최대입니다.");
     const cost = { parts: ACTION_RULES.repairParts };
     if (!canAfford(state.resources, cost)) return no(missingText(state.resources, cost));
-    const gain = Math.min(ACTION_RULES.repairAmount, max - fac.durability);
+    const gain = Math.min(repairAmount(state), max - fac.durability);
     return { ok: true, cost, preview: `내구도 +${gain} (${fac.durability} → ${fac.durability + gain})` };
+  }
+
+  if (id === "craft") {
+    if (!hasWorking(state, "workbench")) return no("전력이 들어오는 작업대가 필요합니다. (작업실 + 작업대 + 가동 중인 발전기)");
+    if (target?.kind !== "recipe") return no("만들 물품을 고르세요.");
+    const recipe = RECIPES.find((r) => r.id === target.recipeId);
+    if (!recipe) return no("알 수 없는 제작법입니다.");
+    if (!canAfford(state.resources, recipe.input)) return no(missingText(state.resources, recipe.input));
+    return { ok: true, cost: recipe.input, preview: `${bundleText(recipe.input)} → ${bundleText(recipe.output)}` };
   }
 
   if (id === "explore") return { ok: true, cost: {}, preview: `무작위 발견${nightNote}` };
@@ -143,15 +160,28 @@ export function doAction(state: GameState, id: ActionId, target?: ActionTarget):
               facilities: r.facilities.map((f) => {
                 if (f.id !== target.facilityId) return f;
                 name = FACILITY_BY_ID[f.type].name;
-                return { ...f, durability: Math.min(max(f.type), f.durability + ACTION_RULES.repairAmount) };
+                return { ...f, durability: Math.min(max(f.type), f.durability + repairAmount(state)) };
               }),
             },
       ),
     };
     text = `${name}을(를) 손봤다.`;
+  } else if (id === "craft" && target?.kind === "recipe") {
+    const recipe = RECIPES.find((r) => r.id === target.recipeId)!;
+    gained = { ...recipe.output };
+    text = `작업대에서 ${recipe.name}을(를) 마쳤다.`;
   }
 
-  s = { ...s, resources: applyBundle(applyBundle(s.resources, check.cost, -1), gained, 1), seed };
+  s = { ...s, resources: applyBundle(s.resources, check.cost, -1), seed };
+  const capped = addCapped(s, gained);
+  s = { ...s, resources: capped.resources };
+  const lostText = Object.keys(capped.lost).length ? ` 저장 공간이 부족해 ${bundleText(capped.lost)}은(는) 두고 왔다.` : "";
+  text += lostText;
+  for (const k of Object.keys(capped.lost) as ResourceId[]) {
+    const v = (gained[k] ?? 0) - (capped.lost[k] ?? 0);
+    if (v > 0) gained[k] = v;
+    else delete gained[k];
+  }
   const result: ActionResult = {
     serial: (state.lastAction?.serial ?? 0) + 1,
     actionName: def.name,

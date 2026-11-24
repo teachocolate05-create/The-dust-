@@ -3,6 +3,7 @@ import type { ActionId } from "../config/actions";
 import * as actions from "../systems/actions";
 import * as space from "../systems/space";
 import * as time from "../systems/time";
+import * as operation from "../systems/operation";
 import { createInitialState } from "./initialState";
 
 // 게임 상태를 바꾸는 유일한 통로. UI는 이 액션만 보낸다.
@@ -21,9 +22,17 @@ export type GameAction =
   | { type: "REMOVE_FACILITY"; roomId: string; facilityId: string }
   | { type: "DO_ACTION"; actionId: ActionId; target?: actions.ActionTarget }
   | { type: "END_PHASE" }
-  | { type: "START_NEXT_DAY" };
+  | { type: "START_NEXT_DAY" }
+  | { type: "TOGGLE_FACILITY"; roomId: string; facilityId: string }
+  | { type: "REPAIR_FACILITY"; roomId: string; facilityId: string };
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
+  const next = applyAction(state, action);
+  // 창고 철거 등으로 저장 용량이 줄면 넘치는 자원은 버려진다
+  return next === state ? state : operation.enforceCapacity(next);
+}
+
+function applyAction(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "NEW_GAME":
       return createInitialState();
@@ -51,5 +60,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return time.endPhase(state);
     case "START_NEXT_DAY":
       return time.startNextDay(state);
+    case "TOGGLE_FACILITY":
+      return operation.toggleFacility(state, action.roomId, action.facilityId);
+    case "REPAIR_FACILITY":
+      return operation.repairFacility(state, action.roomId, action.facilityId);
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { ACTIONS, ACTION_RULES, type ActionCategory, type ActionDef } from "@/game/config/actions";
+import { ACTIONS, ACTION_RULES, RECIPES, type ActionCategory, type ActionDef } from "@/game/config/actions";
 import { RULES } from "@/game/config/rules";
 import type { GameState } from "@/game/core/types";
 import { canDoAction } from "@/game/systems/actions";
@@ -84,6 +84,42 @@ export default function ActionPanel({ state, selection, setMode, run }: Props) {
                     : "지도에서 시설을 선택한 뒤 실행";
                 disabled = true;
               } else note = chk && chk.ok ? chk.preview : chk ? chk.reason : "";
+              if (a.needsTarget === "recipe") {
+                const base = canDoAction(state, "craft");
+                const noBench = !base.ok && base.reason.startsWith("전력이 들어오는 작업대");
+                return (
+                  <li key={a.id}>
+                    <div className={`card action-card static ${!day || state.actionsLeft <= 0 ? "dim" : ""}`}>
+                      <span className="card-main">
+                        <span className="card-title">{a.name}</span>
+                        <span className="card-desc">{a.desc}</span>
+                        {noBench || !day || state.actionsLeft <= 0 ? (
+                          <span className="card-note">{base.ok ? "" : base.reason}</span>
+                        ) : (
+                          <span className="recipe-row">
+                            {RECIPES.map((rc) => {
+                              const c = canDoAction(state, "craft", { kind: "recipe", recipeId: rc.id });
+                              return (
+                                <button
+                                  key={rc.id}
+                                  className="btn small"
+                                  disabled={!c.ok}
+                                  title={c.ok ? "" : c.reason}
+                                  onClick={() => run({ type: "DO_ACTION", actionId: "craft", target: { kind: "recipe", recipeId: rc.id } })}
+                                >
+                                  {rc.name}
+                                  <CostTag bundle={rc.input} have={state.resources} />→ <CostTag bundle={rc.output} />
+                                </button>
+                              );
+                            })}
+                          </span>
+                        )}
+                      </span>
+                      <span className="card-side">행동 1</span>
+                    </div>
+                  </li>
+                );
+              }
               return (
                 <li key={a.id}>
                   <button className={`card action-card ${a.implemented ? "" : "planned"}`} disabled={disabled} onClick={() => onAction(a)}>

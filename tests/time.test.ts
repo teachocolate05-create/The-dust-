@@ -75,23 +75,23 @@ describe("행동 횟수", () => {
 describe("건설과 행동의 분리", () => {
   it("낮에는 건설 불가, 정비 시간에는 행동 불가", () => {
     let s = start();
-    expect(canCreateRoom(s, { x: 9, y: 4, w: 3, h: 3 }, "storage").ok).toBe(false);
+    expect(canCreateRoom(s, { x: 12, y: 9, w: 3, h: 3 }, "storage").ok).toBe(false);
     for (let i = 0; i < 3; i++) s = gameReducer(s, { type: "END_PHASE" });
     expect(s.phase).toBe("maintenance");
-    expect(canCreateRoom(s, { x: 9, y: 4, w: 3, h: 3 }, "storage").ok).toBe(true);
+    expect(canCreateRoom(s, { x: 12, y: 9, w: 3, h: 3 }, "storage").ok).toBe(true);
     expect(canDoAction(s, "scavenge").ok).toBe(false);
   });
 });
 
 describe("잔해 정리", () => {
   it("통로와 맞닿은 잔해를 바닥으로 바꾸고 자재를 얻는다", () => {
-    const s = start();
-    // (5,1)은 바닥, (4,1)·(4,2)는 잔해 → (3,1) 기준 2×2 = (3..4, 1..2) 잔해 4칸
-    const pos = { x: 3, y: 1 };
+    const s: GameState = { ...start(), resources: { ...start().resources, materials: 30 } };
+    // (14,1)은 통로, (12..13, 1..2)는 잔해 4칸
+    const pos = { x: 12, y: 1 };
     expect(clearableDebris(s, pos).length).toBe(4);
     const s2 = gameReducer(s, { type: "DO_ACTION", actionId: "clearDebris", target: { kind: "debris", pos } });
-    expect(s2.map[1][3]).toBe("floor");
-    expect(s2.map[2][4]).toBe("floor");
+    expect(s2.map[1][12]).toBe("floor");
+    expect(s2.map[2][13]).toBe("floor");
     expect(s2.resources.materials).toBe(s.resources.materials + 4);
   });
   it("통로에 닿지 않은 잔해는 치울 수 없다", () => {

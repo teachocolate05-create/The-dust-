@@ -4,7 +4,7 @@ import { STARTING_RESOURCES } from "../config/resources";
 import { RULES } from "../config/rules";
 import type { FacilityTypeId, GameState, Rect, Room, RoomTypeId } from "../core/types";
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 // 시작 시 역사에 남아 있는 공간 (기획서 2-2, 2-3)
 interface PresetRoom {
@@ -18,8 +18,8 @@ const PRESET_ROOMS: PresetRoom[] = [
   {
     name: "임시 거주 구역",
     type: "residence",
-    rect: { x: 1, y: 3, w: 4, h: 3 },
-    facilities: [{ type: "cot", x: 1, y: 3 }],
+    rect: { x: 8, y: 9, w: 4, h: 3 },
+    facilities: [{ type: "cot", x: 8, y: 9 }],
   },
   {
     name: "비상 발전실",
@@ -30,8 +30,8 @@ const PRESET_ROOMS: PresetRoom[] = [
   {
     name: "남은 창고",
     type: "storage",
-    rect: { x: 18, y: 4, w: 3, h: 2 },
-    facilities: [{ type: "shelf", x: 18, y: 4, durability: 70 }],
+    rect: { x: 18, y: 10, w: 3, h: 2 },
+    facilities: [{ type: "shelf", x: 18, y: 10, durability: 70 }],
   },
 ];
 
@@ -49,6 +49,7 @@ export function createInitialState(seed: number = Date.now() % 2147483647): Game
       y: f.y,
       rotated: f.rotated ?? false,
       durability: f.durability ?? FACILITY_BY_ID[f.type].maxDurability,
+      enabled: true,
     })),
   }));
 
@@ -68,7 +69,7 @@ export function createInitialState(seed: number = Date.now() % 2147483647): Game
         day: 1,
         phase: "morning",
         kind: "info",
-        text: "폐쇄된 환승역에 도착했다. 비상 발전기는 겨우 돌아가고, 남은 물자는 많지 않다.",
+        text: "폐쇄된 환승역에 도착했다. 대합실은 무너진 잔해로 막혀 있고, 비상 발전기는 겨우 돌아간다. 남은 물자는 많지 않다.",
       },
     ],
   };
