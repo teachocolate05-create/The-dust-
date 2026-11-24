@@ -5,6 +5,7 @@ import { canDoAction, clearableDebris } from "@/game/systems/actions";
 import { canCreateRoom } from "@/game/systems/space";
 import { forecastPhaseEnd } from "@/game/systems/time";
 import type { GameState } from "@/game/core/types";
+import { opened } from "./helpers";
 
 const start = () => createInitialState(42);
 
@@ -74,11 +75,11 @@ describe("행동 횟수", () => {
 
 describe("건설과 행동의 분리", () => {
   it("낮에는 건설 불가, 정비 시간에는 행동 불가", () => {
-    let s = start();
-    expect(canCreateRoom(s, { x: 12, y: 9, w: 3, h: 3 }, "storage").ok).toBe(false);
+    let s = opened(42);
+    expect(canCreateRoom(s, { x: 9, y: 4, w: 3, h: 3 }, "storage").ok).toBe(false);
     for (let i = 0; i < 3; i++) s = gameReducer(s, { type: "END_PHASE" });
     expect(s.phase).toBe("maintenance");
-    expect(canCreateRoom(s, { x: 12, y: 9, w: 3, h: 3 }, "storage").ok).toBe(true);
+    expect(canCreateRoom(s, { x: 9, y: 4, w: 3, h: 3 }, "storage").ok).toBe(true);
     expect(canDoAction(s, "scavenge").ok).toBe(false);
   });
 });
@@ -100,8 +101,13 @@ describe("잔해 정리", () => {
 });
 
 describe("직접 수리", () => {
-  it("부품 1로 비상 발전기 내구도 +25", () => {
+  it("잔해에 막힌 발전기는 수리할 수 없다", () => {
     const s = start();
+    const room = s.rooms.find((r) => r.type === "power")!;
+    expect(canDoAction(s, "repair", { kind: "facility", roomId: room.id, facilityId: room.facilities[0].id }).ok).toBe(false);
+  });
+  it("부품 1로 비상 발전기 내구도 +25", () => {
+    const s = opened(42);
     const room = s.rooms.find((r) => r.type === "power")!;
     const gen = room.facilities[0];
     const s2 = gameReducer(s, { type: "DO_ACTION", actionId: "repair", target: { kind: "facility", roomId: room.id, facilityId: gen.id } });

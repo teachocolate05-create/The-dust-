@@ -83,7 +83,15 @@ export function forecastPhaseEnd(state: GameState): PhaseForecast {
     for (const r of sim.reports) {
       const name = FACILITY_BY_ID[r.type].name;
       if (r.status === "noFuel") warnings.push(`${name}: 연료가 없어 멈춥니다.`);
-      if (r.status === "noPower") warnings.push(`${name}: 전력이 부족해 멈춥니다.`);
+      if (r.status === "noPower") warnings.push(`${name}: 연결된 전력망의 전력이 부족해 멈춥니다.`);
+      if (r.status === "noPowerLine") warnings.push(`${name}: 전력선이 연결되지 않아 멈춥니다.`);
+      if (r.status === "noWaterLine") warnings.push(`${name}: 급수원과 이어진 수도관이 없어 멈춥니다.`);
+      if (r.status === "noRawWater") warnings.push(`${name}: 급수원 공급량이 부족해 멈춥니다.`);
+      if (r.status === "running" && FACILITY_BY_ID[r.type].power > 0) {
+        const net = sim.powerNets.find((n) => n.id === r.powerNet);
+        if (!net) warnings.push(`${name}: 전력선에 연결되지 않아 연료만 태웁니다. 연결하거나 정지하세요.`);
+        else if (net.demand === 0) warnings.push(`${name}: 전력망에 전력을 쓰는 시설이 없어 연료만 태웁니다.`);
+      }
       if (r.status === "broken") warnings.push(`${name}: 고장 상태입니다. 수리가 필요합니다.`);
       if (r.status === "running") {
         const f = state.rooms.flatMap((x) => x.facilities).find((x) => x.id === r.facilityId)!;
@@ -92,8 +100,6 @@ export function forecastPhaseEnd(state: GameState): PhaseForecast {
         else if (atRisk(nextF)) warnings.push(`${name}: 내구도가 낮아 고장 날 수 있습니다. (${nextF.durability})`);
       }
     }
-    if (sim.power.supply > 0 && sim.power.demand === 0)
-      warnings.push("전력을 쓰는 시설이 없어 발전기가 연료만 태웁니다. 필요 없으면 발전기를 정지하세요.");
     if (state.actionsLeft > 0) warnings.push(`사용하지 않은 행동 ${state.actionsLeft}회는 사라집니다.`);
     if (state.phase === "night") warnings.push("야간이 끝나면 정비 시간이 시작됩니다.");
   }

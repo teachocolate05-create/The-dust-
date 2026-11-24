@@ -4,7 +4,7 @@ import { STARTING_RESOURCES } from "../config/resources";
 import { RULES } from "../config/rules";
 import type { FacilityTypeId, GameState, Rect, Room, RoomTypeId } from "../core/types";
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 // 시작 시 역사에 남아 있는 공간 (기획서 2-2, 2-3)
 interface PresetRoom {
@@ -18,8 +18,8 @@ const PRESET_ROOMS: PresetRoom[] = [
   {
     name: "임시 거주 구역",
     type: "residence",
-    rect: { x: 8, y: 9, w: 4, h: 3 },
-    facilities: [{ type: "cot", x: 8, y: 9 }],
+    rect: { x: 12, y: 3, w: 3, h: 3 },
+    facilities: [{ type: "cot", x: 12, y: 3 }],
   },
   {
     name: "비상 발전실",
@@ -28,10 +28,10 @@ const PRESET_ROOMS: PresetRoom[] = [
     facilities: [{ type: "emergency_gen", x: 4, y: 10, durability: 38 }],
   },
   {
-    name: "남은 창고",
+    name: "옛 창고",
     type: "storage",
-    rect: { x: 18, y: 10, w: 3, h: 2 },
-    facilities: [{ type: "shelf", x: 18, y: 10, durability: 70 }],
+    rect: { x: 22, y: 4, w: 3, h: 2 },
+    facilities: [{ type: "shelf", x: 22, y: 4, durability: 70 }],
   },
 ];
 
@@ -64,12 +64,13 @@ export function createInitialState(seed: number = Date.now() % 2147483647): Game
     nextId,
     seed,
     lastAction: null,
+    lines: { power: [], water: [] },
     log: [
       {
         day: 1,
         phase: "morning",
         kind: "info",
-        text: "폐쇄된 환승역에 도착했다. 대합실은 무너진 잔해로 막혀 있고, 비상 발전기는 겨우 돌아간다. 남은 물자는 많지 않다.",
+        text: "폐쇄된 환승역에 도착했다. 출입구 아래 좁은 공간만 겨우 쓸 수 있다. 잔해 너머 어딘가에 비상 발전기와 옛 창고가 있다고 들었다.",
       },
     ],
   };

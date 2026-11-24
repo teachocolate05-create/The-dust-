@@ -5,6 +5,8 @@ import { pointInRect, rectFromPoints } from "@/game/core/geometry";
 import type { Check, Point } from "@/game/core/types";
 import { computeAccess } from "@/game/systems/access";
 import { capacity } from "@/game/systems/operation";
+import { canBuildLines, canRemoveLines, computeNets, linePath } from "@/game/systems/network";
+import NetworkPanel from "./NetworkPanel";
 import { forecastPhaseEnd } from "@/game/systems/time";
 import * as space from "@/game/systems/space";
 import { createInitialState } from "@/game/state/initialState";
@@ -19,7 +21,7 @@ import ActionPanel from "./ActionPanel";
 import { AdvanceModal, ConfirmDialog, PhaseButton } from "./TimeControls";
 import { canDoAction } from "@/game/systems/actions";
 import { PHASE_NAMES } from "@/game/systems/phase";
-import type { AskFn, Mode, Selection, Tab } from "./uiTypes";
+import type { AskFn, LineView, Mode, Selection, Tab } from "./uiTypes";
 
 const TABS: { id: Tab; label: string; planned?: string }[] = [
   { id: "base", label: "거점" },
@@ -27,7 +29,7 @@ const TABS: { id: Tab; label: string; planned?: string }[] = [
   { id: "build", label: "건설" },
   { id: "resources", label: "자원" },
   { id: "log", label: "기록" },
-  { id: "network", label: "기반시설", planned: "4단계" },
+  { id: "network", label: "기반시설" },
   { id: "survivors", label: "생존자", planned: "5단계" },
 ];
 
@@ -80,6 +82,16 @@ export default function Game() {
   const access = useMemo(() => computeAccess(state), [state]);
   const forecast = useMemo(() => forecastPhaseEnd(state), [state]);
   const cap = useMemo(() => capacity(state), [state]);
+  // 선 표시: 발전기 없는 전력망 / 급수원 없는 수도망은 어둡게
+  const lineView: LineView = useMemo(() => {
+    const power = computeNets(state, "power");
+    const water = computeNets(state, "water");
+    const pv = new Map<string, "ok" | "dead">();
+    for (const [k, id] of power.netOf) pv.set(k, (forecast.sim.powerNets.find((n) => n.id === id)?.supply ?? 0) > 0 ? "ok" : "dead");
+    const wv = new Map<string, "ok" | "dead">();
+    for (const [k, id] of water.netOf) wv.set(k, (water.sources[id] ?? 0) > 0 ? "ok" : "dead");
+    return { power: pv, water: wv };
+  }, [state, forecast]);
   const statuses = useMemo(() => Object.fromEntries(forecast.sim.reports.map((r) => [r.facilityId, r.status])), [forecast]);
 
   // 행동 결과 알림
@@ -129,6 +141,11 @@ export default function Game() {
         return mode.pos ? space.canMoveFacility(state, mode.roomId, mode.facilityId, mode.pos.x, mode.pos.y, mode.rotated) : null;
       case "resizeRoom":
         return space.canResizeRoom(state, mode.roomId, mode.rect);
+      case "drawLine": {
+        if (!mode.path) return null;
+        const c = mode.remove ? canRemoveLines(state, mode.net, mode.path) : canBuildLines(state, mode.net, mode.path);
+        return c.ok ? { ok: true, cost: c.cost, refund: c.refund } : c;
+      }
       case "clearDebris": {
         if (!mode.pos) return null;
         const c = canDoAction(state, "clearDebris", { kind: "debris", pos: mode.pos });
@@ -191,6 +208,14 @@ export default function Game() {
       setModeRaw({ ...mode, pos: p });
   };
   const onDragStart = (p: Point) => {
+    if (mode.kind === "drawLine") {
+      if (mode.anchor && mode.path && mode.path.length === 1 && (mode.anchor.x !== p.x || mode.anchor.y !== p.y)) {
+        setModeRaw({ ...mode, path: linePath(mode.anchor, p), dragging: true });
+        return;
+      }
+      setModeRaw({ ...mode, anchor: p, path: [p], dragging: true });
+      return;
+    }
     if (mode.kind !== "createRoom") return;
     // 두 번 탭 방식: 1칸만 지정된 상태에서 다른 칸을 누르면 그 칸까지 영역 확장
     if (mode.anchor && mode.rect && mode.rect.w === 1 && mode.rect.h === 1 && (mode.anchor.x !== p.x || mode.anchor.y !== p.y)) {
@@ -200,13 +225,18 @@ export default function Game() {
     setModeRaw({ ...mode, anchor: p, rect: rectFromPoints(p, p), dragging: true });
   };
   const onDragMove = (p: Point) => {
+    if (mode.kind === "drawLine" && mode.anchor) {
+      const last = mode.path?.[mode.path.length - 1];
+      if (!last || last.x !== p.x || last.y !== p.y) setModeRaw({ ...mode, path: linePath(mode.anchor, p) });
+      return;
+    }
     if (mode.kind !== "createRoom" || !mode.anchor) return;
     const r = rectFromPoints(mode.anchor, p);
     if (!mode.rect || r.w !== mode.rect.w || r.h !== mode.rect.h || r.x !== mode.rect.x || r.y !== mode.rect.y)
       setModeRaw({ ...mode, rect: r });
   };
   const onDragEnd = () => {
-    if (mode.kind === "createRoom" && mode.dragging) setModeRaw({ ...mode, dragging: false });
+    if ((mode.kind === "createRoom" || mode.kind === "drawLine") && mode.dragging) setModeRaw({ ...mode, dragging: false });
   };
 
   // Esc로 작업 취소
@@ -302,6 +332,8 @@ export default function Game() {
               tilePx={tilePx}
               previewOk={!!check?.ok}
               statuses={statuses}
+              lineView={lineView}
+              showNetworks={tab === "network" || mode.kind === "drawLine"}
               onTileClick={onTileClick}
               onTileHover={onTileHover}
               onDragStart={onDragStart}
@@ -316,6 +348,8 @@ export default function Game() {
             <span><i className="lg lg-platform" />승강장</span>
             <span><i className="lg lg-door" />출입문</span>
             <span><i className="lg lg-iso" />고립된 방</span>
+            <span><i className="lg lg-power" />전력선</span>
+            <span><i className="lg lg-water" />수도관</span>
             <span className="muted">· 그래픽은 임시 이미지</span>
           </div>
         </section>
@@ -343,6 +377,7 @@ export default function Game() {
             {tab === "build" && <BuildPanel {...panelProps} />}
             {tab === "resources" && <ResourcePanel state={state} forecast={forecast} cap={cap} />}
             {tab === "log" && <LogPanel state={state} />}
+            {tab === "network" && <NetworkPanel state={state} sim={forecast.sim} setMode={setMode} setSelection={setSelection} />}
           </div>
           {!saveOk && <div className="alert warn">이 브라우저에서는 자동 저장을 할 수 없습니다. (저장소 접근 차단)</div>}
         </aside>

@@ -24,6 +24,16 @@ export const RULES = {
     repairPerPart: 20,
   },
 
+  network: {
+    /** 칸당 설치 비용 */
+    lineCost: {
+      power: { materials: 1 },
+      water: { materials: 2 },
+    },
+    /** 급수원 1곳이 구간마다 공급하는 원수 */
+    sourceOutput: 8,
+  },
+
   room: {
     /** 방 1개를 만들 때 기본 자재 */
     baseMaterials: 4,

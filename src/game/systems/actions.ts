@@ -79,7 +79,8 @@ export function canDoAction(state: GameState, id: ActionId, target?: ActionTarge
     if (target?.kind !== "facility") return no("수리할 시설을 고르세요.");
     const room = state.rooms.find((r) => r.id === target.roomId);
     const fac = room?.facilities.find((f) => f.id === target.facilityId);
-    if (!fac) return no("시설을 찾을 수 없습니다.");
+    if (!fac || !room) return no("시설을 찾을 수 없습니다.");
+    if (!computeAccess(state).roomAccess[room.id]) return no("잔해에 막혀 갈 수 없는 방입니다. 먼저 길을 뚫으세요.");
     const max = FACILITY_BY_ID[fac.type].maxDurability;
     if (fac.durability >= max) return no("이미 내구도가 최대입니다.");
     const cost = { parts: ACTION_RULES.repairParts };

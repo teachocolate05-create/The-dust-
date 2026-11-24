@@ -8,6 +8,7 @@ import { isEmptyBundle } from "@/game/core/resources";
 import type { Check, GameState, Rect, RoomTypeId } from "@/game/core/types";
 import * as space from "@/game/systems/space";
 import { canDoAction } from "@/game/systems/actions";
+import { canBuildLines, canRemoveLines, NET_NAMES } from "@/game/systems/network";
 import type { GameAction } from "@/game/state/reducer";
 import { CostTag } from "./Panels";
 import type { Mode, Selection } from "./uiTypes";
@@ -164,6 +165,58 @@ export default function ModeBar({ state, mode, check, setMode, setSelection, run
             }}
           >
             정리
+          </button>
+          <button className="btn ghost" onClick={cancel}>
+            완료
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode.kind === "drawLine") {
+    const names = NET_NAMES[mode.net];
+    const lc = mode.path ? (mode.remove ? canRemoveLines(state, mode.net, mode.path) : canBuildLines(state, mode.net, mode.path)) : null;
+    return (
+      <div className="mode-bar">
+        <div className="mode-head">
+          <span className="mode-title">
+            {names.line} {mode.remove ? "철거" : "설치"}
+          </span>
+          <button className="btn small" onClick={() => setMode({ ...mode, net: mode.net === "power" ? "water" : "power", path: null, anchor: null })}>
+            {mode.net === "power" ? "수도관으로 전환" : "전력선으로 전환"}
+          </button>
+          <button className="btn small" onClick={() => setMode({ ...mode, remove: !mode.remove, path: null, anchor: null })}>
+            {mode.remove ? "설치로 전환" : "철거로 전환"}
+          </button>
+        </div>
+        <p className="mode-hint">
+          지도에서 시작 칸부터 끝 칸까지 드래그하세요(가로 → 세로 ㄱ자로 이어집니다). 모바일은 시작 칸, 끝 칸을 차례로 누르세요.
+          {!mode.remove && " 잔해·기둥 위에는 깔 수 없습니다."}
+        </p>
+        {lc &&
+          (lc.ok ? (
+            <div className="mode-cost">
+              <span className="small-text">{lc.count}칸</span>
+              {mode.remove ? <CostTag bundle={lc.refund} label="회수" /> : <CostTag bundle={lc.cost} have={state.resources} label="비용" />}
+            </div>
+          ) : (
+            <div className="mode-error">{lc.reason}</div>
+          ))}
+        <div className="btn-row">
+          <button
+            className={`btn ${mode.remove ? "danger" : "primary"}`}
+            disabled={!lc?.ok || mode.dragging}
+            onClick={() => {
+              if (!mode.path) return;
+              run(
+                { type: mode.remove ? "REMOVE_LINES" : "BUILD_LINES", net: mode.net, path: mode.path },
+                `${names.line}을 ${mode.remove ? "철거" : "설치"}했습니다.`,
+              );
+              setMode({ ...mode, path: null, anchor: null });
+            }}
+          >
+            {mode.remove ? "철거" : "설치"}
           </button>
           <button className="btn ghost" onClick={cancel}>
             완료

@@ -94,7 +94,12 @@ export interface GameState {
   seed: number;
   /** 가장 최근 행동 결과 (화면 표시용) */
   lastAction: ActionResult | null;
+  /** 기반 시설: 전력선·수도관이 깔린 칸 ("x,y") */
+  lines: Record<NetKind, string[]>;
 }
+
+/** 기반 시설 종류: 전력망 / 수도망 */
+export type NetKind = "power" | "water";
 
 export interface ActionResult {
   /** 결과마다 증가하는 번호 (화면에서 새 결과인지 판단) */

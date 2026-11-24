@@ -1201,3 +1201,82 @@ b {
   white-space: normal;
   text-align: left;
 }
+
+/* ───────── 4단계: 기반 시설 ───────── */
+.lg-power {
+  background: #f2c14e;
+  height: 4px !important;
+  border-radius: 2px;
+}
+.lg-water {
+  background: #5fb4d4;
+  height: 4px !important;
+  border-radius: 2px;
+}
+.net-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (max-width: 420px) {
+  .net-tools {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.net-tool {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.net-tool-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.net-swatch {
+  width: 18px;
+  height: 5px;
+  border-radius: 3px;
+}
+.net-power .net-swatch {
+  background: #f2c14e;
+}
+.net-water .net-swatch {
+  background: #5fb4d4;
+}
+.net-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.net-list li {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.net-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.st-noPowerLine {
+  background: #4d4630;
+  color: #f2e2a8;
+}
+.st-noWaterLine,
+.st-noRawWater {
+  background: #24485a;
+  color: #cdeff5;
+}

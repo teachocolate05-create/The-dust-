@@ -47,8 +47,19 @@ const STAGES: { n: number; title: string; status: "done" | "next" | "todo"; item
       "시작 맵: 대합실 대부분이 잔해",
     ],
   },
-  { n: 4, title: "기반 시설", status: "next", items: ["전력선·수도관 연결", "발전량·소비량 계산", "연결 상태 시각화"] },
-  { n: 5, title: "생존자", status: "todo", items: ["생존자 영입", "업무 배정", "피로도·건강"] },
+  {
+    n: 4,
+    title: "기반 시설",
+    status: "done",
+    items: [
+      "전력선·수도관 설치/철거 (정비 시간, 칸당 자재)",
+      "이어진 선 = 하나의 망, 망별 발전량·소비량 계산",
+      "급수원 → 수도관 → 정수 필터, 급수원 공급량 제한",
+      "연결 상태 표시: 정상 / 미연결 / 공급 부족 / 고장",
+      "시작 상태 축소: 임시 거주 구역만, 발전실·창고는 잔해 너머",
+    ],
+  },
+  { n: 5, title: "생존자", status: "next", items: ["생존자 영입", "업무 배정", "피로도·건강"] },
   { n: 6, title: "사건 및 저장", status: "todo", items: ["무작위 사건", "사건 기록", "7일 생존 테스트"] },
 ];
 
@@ -65,8 +76,8 @@ export default function StatusModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <p className="muted small-text">
-          현재 버전은 <b>3단계</b>입니다. 시설이 실제로 돌아가며 연료를 쓰고, 닳고, 고장 납니다. 낮에는 행동으로 물자를
-          모으고 잔해를 치우며, 야간이 끝나면 정비 시간에 거점을 고치고 넓힙니다.
+          현재 버전은 <b>4단계</b>입니다. 좁은 임시 거주 구역에서 시작해 잔해를 뚫어 발전기와 창고를 되찾고, 정비 시간에
+          전력선과 수도관을 직접 이어 시설을 가동합니다.
         </p>
         <ul className="stage-list">
           {STAGES.map((s) => (

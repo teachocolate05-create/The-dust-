@@ -8,6 +8,7 @@ import { RULES } from "../config/rules";
 import { bundleText, canAfford, missingText } from "../core/resources";
 import type { Check, Facility, FacilityTypeId, GameState, LogEntry, ResourceBundle, ResourceId, Room } from "../core/types";
 import { computeAccess } from "./access";
+import { computeNets } from "./network";
 import { canModifyBase } from "./phase";
 
 // ───────────── 저장 용량 ─────────────
@@ -76,7 +77,10 @@ export type FacilityStatus =
   | "off" // 플레이어가 정지
   | "broken" // 내구도 0
   | "noFuel" // 연료 부족
-  | "noPower" // 전력 부족
+  | "noPower" // 전력망의 전력 부족
+  | "noPowerLine" // 전력선 미연결
+  | "noWaterLine" // 급수원과 이어진 수도관 없음
+  | "noRawWater" // 급수원 공급량 부족
   | "isolated"; // 방이 통로와 끊겨 접근 불가
 
 export const STATUS_LABEL: Record<FacilityStatus, string> = {
@@ -86,6 +90,9 @@ export const STATUS_LABEL: Record<FacilityStatus, string> = {
   broken: "고장",
   noFuel: "연료 부족",
   noPower: "전력 부족",
+  noPowerLine: "전력선 미연결",
+  noWaterLine: "수도관 미연결",
+  noRawWater: "원수 부족",
   isolated: "접근 불가",
 };
 
@@ -100,12 +107,34 @@ export interface FacilityReport {
   produced: ResourceBundle;
   consumed: ResourceBundle;
   decay: number;
+  /** 연결된 전력망·수도망 번호 */
+  powerNet?: number;
+  waterNet?: number;
+}
+
+export interface PowerNetSummary {
+  id: number;
+  supply: number;
+  demand: number;
+  used: number;
+  tiles: number;
+}
+
+export interface WaterNetSummary {
+  id: number;
+  sources: number;
+  rawCapacity: number;
+  rawUsed: number;
+  tiles: number;
 }
 
 export interface PeriodSim {
   reports: FacilityReport[];
   byId: Record<string, FacilityReport>;
+  /** 전체 합계 */
   power: { supply: number; demand: number; used: number };
+  powerNets: PowerNetSummary[];
+  waterNets: WaterNetSummary[];
   /** 시설 생산 합계 */
   production: ResourceBundle;
   /** 시설 소비 합계 (인원 소비 제외) */
@@ -151,7 +180,25 @@ export function simulatePeriod(state: GameState): PeriodSim {
     reports.push(r);
   }
 
-  // 2) 발전기: 연료를 쓰고 전력 생산
+  const pNets = computeNets(state, "power");
+  const wNets = computeNets(state, "water");
+  for (const r of reports) {
+    r.powerNet = pNets.facilityNet[r.facilityId];
+    r.waterNet = wNets.facilityNet[r.facilityId];
+  }
+  const tileCount = (info: typeof pNets, id: number) => [...info.netOf.values()].filter((v) => v === id).length;
+  const powerNets: PowerNetSummary[] = pNets.ids.map((id) => ({ id, supply: 0, demand: 0, used: 0, tiles: tileCount(pNets, id) }));
+  const waterNets: WaterNetSummary[] = wNets.ids.map((id) => ({
+    id,
+    sources: wNets.sources[id] ?? 0,
+    rawCapacity: (wNets.sources[id] ?? 0) * RULES.network.sourceOutput,
+    rawUsed: 0,
+    tiles: tileCount(wNets, id),
+  }));
+  const pn = (id?: number) => powerNets.find((n) => n.id === id);
+  const wn = (id?: number) => waterNets.find((n) => n.id === id);
+
+  // 2) 발전기: 연료를 쓰고 전력 생산. 전력선에 연결되지 않으면 만든 전력을 쓸 곳이 없다.
   let supply = 0;
   for (const r of candidates.filter((c) => FACILITY_BY_ID[c.type].power > 0)) {
     const def = FACILITY_BY_ID[r.type];
@@ -165,24 +212,51 @@ export function simulatePeriod(state: GameState): PeriodSim {
     }
     r.powerOut = Math.floor(def.power * r.efficiency);
     supply += r.powerOut;
+    const net = pn(r.powerNet);
+    if (net) net.supply += r.powerOut;
   }
 
-  // 3) 전력 소비 시설: 목록 순서대로 전력 배분
+  // 3) 소비 시설: 수도관 → 전력선 → 전력량 → 원수량 순서로 확인
   let used = 0;
   let demand = 0;
   for (const r of candidates.filter((c) => FACILITY_BY_ID[c.type].power <= 0)) {
-    const need = -FACILITY_BY_ID[r.type].power;
+    const def = FACILITY_BY_ID[r.type];
+    const need = -def.power;
+    const rawNeed = Math.floor((def.produces.water ?? 0) * r.efficiency);
     demand += need;
+    const water = wn(r.waterNet);
+    if (def.produces.water && (!water || water.sources === 0)) {
+      r.status = "noWaterLine";
+      continue;
+    }
     if (need > 0) {
-      if (supply - used >= need) {
-        used += need;
-        r.powerIn = need;
-      } else {
+      const net = pn(r.powerNet);
+      if (!net) {
+        r.status = "noPowerLine";
+        continue;
+      }
+      net.demand += need;
+      if (net.supply - net.used < need) {
         r.status = "noPower";
         continue;
       }
+      net.used += need;
+      used += need;
+      r.powerIn = need;
     }
-    const def = FACILITY_BY_ID[r.type];
+    if (water && rawNeed > 0) {
+      if (water.rawCapacity - water.rawUsed < rawNeed) {
+        r.status = "noRawWater";
+        // 전력은 이미 배정했으므로 되돌린다
+        if (r.powerIn) {
+          pn(r.powerNet)!.used -= r.powerIn;
+          used -= r.powerIn;
+          r.powerIn = 0;
+        }
+        continue;
+      }
+      water.rawUsed += rawNeed;
+    }
     for (const [k, v] of Object.entries(def.produces) as [ResourceId, number][]) add(r.produced, k, Math.floor(v * r.efficiency));
   }
 
@@ -200,6 +274,8 @@ export function simulatePeriod(state: GameState): PeriodSim {
     reports,
     byId: Object.fromEntries(reports.map((r) => [r.facilityId, r])),
     power: { supply, demand, used },
+    powerNets,
+    waterNets,
     production,
     facilityUse,
   };
@@ -256,8 +332,9 @@ export function canRepairFacility(state: GameState, roomId: string, facilityId: 
   if (!canModifyBase(state)) return { ok: false, reason: "정비 수리는 정비 시간에만 할 수 있습니다. 낮에는 '직접 수리' 행동을 쓰세요." };
   const room = state.rooms.find((r) => r.id === roomId);
   const f = room?.facilities.find((x) => x.id === facilityId);
-  if (!f) return { ok: false, reason: "시설을 찾을 수 없습니다." };
+  if (!f || !room) return { ok: false, reason: "시설을 찾을 수 없습니다." };
   if (f.durability >= FACILITY_BY_ID[f.type].maxDurability) return { ok: false, reason: "이미 내구도가 최대입니다." };
+  if (!computeAccess(state).roomAccess[room.id]) return { ok: false, reason: "잔해에 막혀 갈 수 없는 방입니다. 먼저 길을 뚫으세요." };
   const cost = repairCost(f);
   if (!canAfford(state.resources, cost)) return { ok: false, reason: missingText(state.resources, cost) };
   return { ok: true, cost, refund: {} };

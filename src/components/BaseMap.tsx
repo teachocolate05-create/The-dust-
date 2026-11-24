@@ -7,7 +7,7 @@ import type { GameState, Point, Rect, TileType } from "@/game/core/types";
 import type { AccessInfo } from "@/game/systems/access";
 import { facilityRect } from "@/game/systems/space";
 import { debrisArea } from "@/game/systems/actions";
-import type { Mode, Selection } from "./uiTypes";
+import type { LineView, Mode, Selection } from "./uiTypes";
 import type { FacilityStatus } from "@/game/systems/operation";
 
 const S = 32; // SVG 내부 좌표계에서 타일 1칸 크기
@@ -23,6 +23,10 @@ interface Props {
   previewOk: boolean;
   /** 시설별 가동 상태 */
   statuses: Record<string, FacilityStatus>;
+  /** 전력선·수도관 표시 */
+  lineView: LineView;
+  /** 기반 시설 보기 (방을 흐리게, 선을 굵게) */
+  showNetworks: boolean;
   onTileClick: (p: Point) => void;
   onTileHover: (p: Point) => void;
   onDragStart: (p: Point) => void;
@@ -57,7 +61,7 @@ export default function BaseMap(p: Props) {
     return { x, y };
   };
 
-  const dragMode = mode.kind === "createRoom";
+  const dragMode = mode.kind === "createRoom" || mode.kind === "drawLine";
 
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     if (!dragMode) return;
@@ -70,7 +74,7 @@ export default function BaseMap(p: Props) {
     const t = toTile(e.clientX, e.clientY);
     if (!t) return;
     if (dragMode) {
-      if (mode.kind === "createRoom" && mode.dragging) p.onDragMove(t);
+      if ((mode.kind === "createRoom" || mode.kind === "drawLine") && mode.dragging) p.onDragMove(t);
     } else if (e.pointerType === "mouse") {
       p.onTileHover(t);
     }
@@ -222,6 +226,34 @@ export default function BaseMap(p: Props) {
     );
   });
 
+  // ── 기반 시설 선 ──
+  const lineLayer: React.ReactNode[] = [];
+  const NET_STYLE = {
+    power: { ok: "#f2c14e", dead: "#7d6a35", off: -5 },
+    water: { ok: "#5fb4d4", dead: "#36606e", off: 5 },
+  } as const;
+  for (const net of ["water", "power"] as const) {
+    const view = p.lineView[net];
+    const st = NET_STYLE[net];
+    const wid = p.showNetworks ? 5 : 3;
+    for (const [k, v] of view) {
+      const [x, y] = k.split(",").map(Number);
+      const cx = x * S + S / 2 + st.off;
+      const cy = y * S + S / 2 + st.off;
+      const color = st[v];
+      for (const [dx, dy] of [
+        [1, 0],
+        [0, 1],
+      ]) {
+        if (view.has(`${x + dx},${y + dy}`))
+          lineLayer.push(
+            <line key={`${net}${k}-${dx}`} x1={cx} y1={cy} x2={cx + dx * S} y2={cy + dy * S} stroke={color} strokeWidth={wid} strokeLinecap="round" />,
+          );
+      }
+      lineLayer.push(<circle key={`${net}${k}`} cx={cx} cy={cy} r={wid / 2 + 1} fill={color} stroke="#000" strokeWidth={0.8} />);
+    }
+  }
+
   // ── 미리보기 ──
   let preview: React.ReactNode = null;
   const pc = p.previewOk ? "#7ed47e" : "#e0604f";
@@ -251,6 +283,15 @@ export default function BaseMap(p: Props) {
         </g>
       );
     }
+  } else if (mode.kind === "drawLine" && mode.path) {
+    const color = mode.remove ? "#e0604f" : p.previewOk ? (mode.net === "power" ? "#f2c14e" : "#5fb4d4") : "#e0604f";
+    preview = (
+      <g pointerEvents="none">
+        {mode.path.map((pt) => (
+          <rect key={`lp${pt.x},${pt.y}`} x={pt.x * S + 4} y={pt.y * S + 4} width={S - 8} height={S - 8} rx={4} fill={color} fillOpacity={0.35} stroke={color} strokeWidth={2} strokeDasharray={mode.remove ? "4 3" : undefined} />
+        ))}
+      </g>
+    );
   } else if (mode.kind === "clearDebris" && mode.pos) {
     const r = debrisArea(state, mode.pos);
     preview = (
@@ -336,8 +377,11 @@ export default function BaseMap(p: Props) {
       </defs>
       <g>{tiles}</g>
       <g>{platformEdge}</g>
-      <g>{rooms}</g>
+      <g opacity={p.showNetworks ? 0.45 : 1}>{rooms}</g>
       <g>{facilities}</g>
+      <g pointerEvents="none" opacity={p.showNetworks ? 1 : 0.85}>
+        {lineLayer}
+      </g>
       <g>{labels}</g>
       {mode.kind === "clearDebris" && <g pointerEvents="none">{debrisHints}</g>}
       {state.phase === "night" && <rect pointerEvents="none" width={W * S} height={H * S} fill="#0b1636" opacity={0.32} />}
@@ -413,6 +457,9 @@ function StatusBadge({ x, y, status }: { x: number; y: number; status: FacilityS
     broken: { fill: "#e0604f", text: "✕" },
     noFuel: { fill: "#e3a341", text: "연" },
     noPower: { fill: "#e8c547", text: "⚡" },
+    noPowerLine: { fill: "#b0a070", text: "선" },
+    noWaterLine: { fill: "#5fb4d4", text: "관" },
+    noRawWater: { fill: "#5fb4d4", text: "수" },
   };
   const m = map[status];
   if (!m) return null;

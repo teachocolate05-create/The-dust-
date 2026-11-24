@@ -340,6 +340,35 @@ function FacilityInfo({ state, room, facilityId, setSelection, setMode, run, sim
         )}
       </div>
 
+      {(def.power !== 0 || def.produces.water) && rep && (
+        <ul className="effect-list">
+          {def.power !== 0 && (
+            <li>
+              <span>전력망</span>
+              <span className="grow" />
+              {rep.powerNet ? (
+                <span className="status-pill st-running">전력망 {rep.powerNet}에 연결</span>
+              ) : (
+                <span className="status-pill st-noPowerLine">전력선 미연결</span>
+              )}
+            </li>
+          )}
+          {def.produces.water && (
+            <li>
+              <span>수도망</span>
+              <span className="grow" />
+              {rep.waterNet && sim.waterNets.find((n) => n.id === rep.waterNet)?.sources ? (
+                <span className="status-pill st-running">수도망 {rep.waterNet} (급수원 연결)</span>
+              ) : rep.waterNet ? (
+                <span className="status-pill st-noWaterLine">수도망 {rep.waterNet} · 급수원 없음</span>
+              ) : (
+                <span className="status-pill st-noWaterLine">수도관 미연결</span>
+              )}
+            </li>
+          )}
+        </ul>
+      )}
+
       {def.operates && (
         <div className="btn-row">
           <button
@@ -579,7 +608,12 @@ export function ResourcePanel({ state, forecast, cap }: { state: GameState; fore
         {demand > used && <span className="warn-text"> — 전력 부족, 일부 시설이 멈춥니다.</span>}
         {supply > 0 && demand === 0 && <span className="muted"> — 전력을 쓰는 시설이 없습니다.</span>}
       </p>
-      <p className="muted small-text">지금은 발전량 전체를 모든 시설이 나눠 씁니다. 전력선 연결이 필요한 방식은 4단계에서 추가됩니다.</p>
+      {forecast.sim.powerNets.length > 1 && (
+        <p className="small-text">
+          {forecast.sim.powerNets.map((n) => `전력망 ${n.id}: ${n.used}/${n.supply}`).join(" · ")}
+        </p>
+      )}
+      <p className="muted small-text">전력은 전력선으로 이어진 시설끼리만 나눠 씁니다. 자세한 연결은 '기반시설' 탭에서 확인하세요.</p>
 
       <h4 className="section-title">가동 시설</h4>
       {machines.length === 0 ? (

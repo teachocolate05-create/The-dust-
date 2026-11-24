@@ -1,9 +1,10 @@
-import type { FacilityTypeId, GameState, Rect, RoomTypeId } from "../core/types";
+import type { FacilityTypeId, GameState, NetKind, Point, Rect, RoomTypeId } from "../core/types";
 import type { ActionId } from "../config/actions";
 import * as actions from "../systems/actions";
 import * as space from "../systems/space";
 import * as time from "../systems/time";
 import * as operation from "../systems/operation";
+import * as network from "../systems/network";
 import { createInitialState } from "./initialState";
 
 // 게임 상태를 바꾸는 유일한 통로. UI는 이 액션만 보낸다.
@@ -24,7 +25,9 @@ export type GameAction =
   | { type: "END_PHASE" }
   | { type: "START_NEXT_DAY" }
   | { type: "TOGGLE_FACILITY"; roomId: string; facilityId: string }
-  | { type: "REPAIR_FACILITY"; roomId: string; facilityId: string };
+  | { type: "REPAIR_FACILITY"; roomId: string; facilityId: string }
+  | { type: "BUILD_LINES"; net: NetKind; path: Point[] }
+  | { type: "REMOVE_LINES"; net: NetKind; path: Point[] };
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   const next = applyAction(state, action);
@@ -64,5 +67,9 @@ function applyAction(state: GameState, action: GameAction): GameState {
       return operation.toggleFacility(state, action.roomId, action.facilityId);
     case "REPAIR_FACILITY":
       return operation.repairFacility(state, action.roomId, action.facilityId);
+    case "BUILD_LINES":
+      return network.buildLines(state, action.net, action.path);
+    case "REMOVE_LINES":
+      return network.removeLines(state, action.net, action.path);
   }
 }

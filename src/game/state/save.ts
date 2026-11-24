@@ -40,10 +40,12 @@ export function validateSave(data: any): data is GameState {
   if (!Array.isArray(data.log)) return false;
   if (!isInt(data.seed)) return false;
   if (data.lastAction !== null && typeof data.lastAction !== "object") return false;
+  const isKey = (k: any) => typeof k === "string" && /^\d+,\d+$/.test(k);
+  if (!data.lines || !["power", "water"].every((n) => Array.isArray(data.lines[n]) && data.lines[n].every(isKey))) return false;
   return true;
 }
 
-/** 예전 버전 저장 데이터를 현재 형식으로 바꾼다. (1단계 → 2단계 → 3단계) */
+/** 예전 버전 저장 데이터를 현재 형식으로 바꾼다. (1단계 → 2 → 3 → 4단계) */
 export function migrateSave(data: any): any {
   if (data && data.version === 1) {
     data = { ...data, version: 2, seed: Date.now() % 2147483647, lastAction: null, actionsLeft: data.phase === "maintenance" ? 0 : data.actionsLeft };
@@ -59,6 +61,8 @@ export function migrateSave(data: any): any {
       })),
     };
   }
+  // 3단계 → 4단계: 기반 시설(전력선·수도관) 추가
+  if (data && data.version === 3) data = { ...data, version: 4, lines: { power: [], water: [] } };
   return data;
 }
 
