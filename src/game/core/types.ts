@@ -96,6 +96,36 @@ export interface GameState {
   lastAction: ActionResult | null;
   /** 기반 시설: 전력선·수도관이 깔린 칸 ("x,y") */
   lines: Record<NetKind, string[]>;
+  /** 거점 인원. 0번은 항상 플레이어 */
+  survivors: Survivor[];
+  /** 발견했거나 입구에 도착한, 아직 수용하지 않은 생존자 */
+  pending: PendingSurvivor[];
+  /** 생존자가 치울 잔해로 지정한 칸 ("x,y") */
+  debrisMarks: string[];
+}
+
+export type SkillLevels = Record<"tech" | "medic" | "gather" | "farm" | "manage", number>;
+
+export interface Survivor {
+  id: string;
+  name: string;
+  age: number;
+  isPlayer: boolean;
+  /** 건강 0~100 */
+  health: number;
+  /** 피로 0~100 */
+  fatigue: number;
+  skills: SkillLevels;
+  job: "rest" | "debris" | "scavenge" | "forage" | "maintain" | "craft";
+  background: string;
+}
+
+export interface PendingSurvivor {
+  survivor: Survivor;
+  /** found = 발견만 함(구조 필요) / arrived = 입구에 도착(수용 결정 필요) */
+  stage: "found" | "arrived";
+  /** 이 날짜가 지나면 떠난다 */
+  leavesAfterDay: number;
 }
 
 /** 기반 시설 종류: 전력망 / 수도망 */

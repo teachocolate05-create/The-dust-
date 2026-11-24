@@ -67,6 +67,9 @@ export default function ActionPanel({ state, selection, setMode, run }: Props) {
         </div>
       )}
 
+      {state.survivors.length > 1 && (
+        <p className="muted small-text">생존자의 일은 '생존자' 탭에서 업무로 배정합니다. 여기 행동은 플레이어가 직접 하는 일입니다.</p>
+      )}
       {CATEGORIES.map((cat) => (
         <div key={cat}>
           <h4 className="section-title">{cat}</h4>

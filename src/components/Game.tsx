@@ -7,6 +7,7 @@ import { computeAccess } from "@/game/systems/access";
 import { capacity } from "@/game/systems/operation";
 import { canBuildLines, canRemoveLines, computeNets, linePath } from "@/game/systems/network";
 import NetworkPanel from "./NetworkPanel";
+import SurvivorPanel from "./SurvivorPanel";
 import { forecastPhaseEnd } from "@/game/systems/time";
 import * as space from "@/game/systems/space";
 import { createInitialState } from "@/game/state/initialState";
@@ -30,7 +31,7 @@ const TABS: { id: Tab; label: string; planned?: string }[] = [
   { id: "resources", label: "자원" },
   { id: "log", label: "기록" },
   { id: "network", label: "기반시설" },
-  { id: "survivors", label: "생존자", planned: "5단계" },
+  { id: "survivors", label: "생존자" },
 ];
 
 export default function Game() {
@@ -146,6 +147,15 @@ export default function Game() {
         const c = mode.remove ? canRemoveLines(state, mode.net, mode.path) : canBuildLines(state, mode.net, mode.path);
         return c.ok ? { ok: true, cost: c.cost, refund: c.refund } : c;
       }
+      case "markDebris": {
+        if (!mode.rect) return null;
+        const marks = new Set(state.debrisMarks);
+        let n = 0;
+        for (let y = mode.rect.y; y < mode.rect.y + mode.rect.h; y++)
+          for (let x = mode.rect.x; x < mode.rect.x + mode.rect.w; x++)
+            if (mode.remove ? marks.has(`${x},${y}`) : state.map[y][x] === "debris" && !marks.has(`${x},${y}`)) n++;
+        return n ? { ok: true, cost: {}, refund: {} } : { ok: false, reason: mode.remove ? "선택한 범위에 지정된 잔해가 없습니다." : "선택한 범위에 새로 지정할 잔해가 없습니다." };
+      }
       case "clearDebris": {
         if (!mode.pos) return null;
         const c = canDoAction(state, "clearDebris", { kind: "debris", pos: mode.pos });
@@ -216,6 +226,14 @@ export default function Game() {
       setModeRaw({ ...mode, anchor: p, path: [p], dragging: true });
       return;
     }
+    if (mode.kind === "markDebris") {
+      if (mode.anchor && mode.rect && mode.rect.w === 1 && mode.rect.h === 1 && (mode.anchor.x !== p.x || mode.anchor.y !== p.y)) {
+        setModeRaw({ ...mode, rect: rectFromPoints(mode.anchor, p), dragging: true });
+        return;
+      }
+      setModeRaw({ ...mode, anchor: p, rect: rectFromPoints(p, p), dragging: true });
+      return;
+    }
     if (mode.kind !== "createRoom") return;
     // 두 번 탭 방식: 1칸만 지정된 상태에서 다른 칸을 누르면 그 칸까지 영역 확장
     if (mode.anchor && mode.rect && mode.rect.w === 1 && mode.rect.h === 1 && (mode.anchor.x !== p.x || mode.anchor.y !== p.y)) {
@@ -230,13 +248,13 @@ export default function Game() {
       if (!last || last.x !== p.x || last.y !== p.y) setModeRaw({ ...mode, path: linePath(mode.anchor, p) });
       return;
     }
-    if (mode.kind !== "createRoom" || !mode.anchor) return;
+    if ((mode.kind !== "createRoom" && mode.kind !== "markDebris") || !mode.anchor) return;
     const r = rectFromPoints(mode.anchor, p);
     if (!mode.rect || r.w !== mode.rect.w || r.h !== mode.rect.h || r.x !== mode.rect.x || r.y !== mode.rect.y)
       setModeRaw({ ...mode, rect: r });
   };
   const onDragEnd = () => {
-    if ((mode.kind === "createRoom" || mode.kind === "drawLine") && mode.dragging) setModeRaw({ ...mode, dragging: false });
+    if ((mode.kind === "createRoom" || mode.kind === "drawLine" || mode.kind === "markDebris") && mode.dragging) setModeRaw({ ...mode, dragging: false });
   };
 
   // Esc로 작업 취소
@@ -377,6 +395,7 @@ export default function Game() {
             {tab === "build" && <BuildPanel {...panelProps} />}
             {tab === "resources" && <ResourcePanel state={state} forecast={forecast} cap={cap} />}
             {tab === "log" && <LogPanel state={state} />}
+            {tab === "survivors" && <SurvivorPanel state={state} run={run} setMode={setMode} ask={ask} />}
             {tab === "network" && <NetworkPanel state={state} sim={forecast.sim} setMode={setMode} setSelection={setSelection} />}
           </div>
           {!saveOk && <div className="alert warn">이 브라우저에서는 자동 저장을 할 수 없습니다. (저장소 접근 차단)</div>}

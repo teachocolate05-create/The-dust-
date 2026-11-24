@@ -10,6 +10,8 @@ import type { ActionResult, GameState, LogEntry, Point, Rect, ResourceBundle, Re
 import { computeAccess } from "./access";
 import { addCapped, hasWorking } from "./operation";
 import { isDayPhase, PHASE_NAMES } from "./phase";
+import { doRescue, doSearch, rescueBlockReason, searchBlockReason } from "./survivors";
+import { SURVIVOR_RULES } from "../config/survivors";
 
 export type ActionTarget =
   | { kind: "debris"; pos: Point }
@@ -64,6 +66,9 @@ export function canDoAction(state: GameState, id: ActionId, target?: ActionTarge
   if (!isDayPhase(state.phase)) return no("정비 시간에는 행동할 수 없습니다. '다음 날 시작'을 누르세요.");
   if (state.actionsLeft <= 0) return no(`${PHASE_NAMES[state.phase]} 행동을 모두 사용했습니다. 구간을 종료하세요.`);
 
+  const player = state.survivors.find((x) => x.isPlayer);
+  if (player && player.fatigue >= 100) return no("너무 지쳐 더 움직일 수 없습니다. 구간을 넘겨 쉬세요 (밤잠으로 회복).");
+
   const rate = yieldRate(state, id);
   const nightNote = rate < 1 ? ` (야간 효율 ${Math.round(rate * 100)}%)` : "";
 
@@ -96,6 +101,18 @@ export function canDoAction(state: GameState, id: ActionId, target?: ActionTarge
     if (!recipe) return no("알 수 없는 제작법입니다.");
     if (!canAfford(state.resources, recipe.input)) return no(missingText(state.resources, recipe.input));
     return { ok: true, cost: recipe.input, preview: `${bundleText(recipe.input)} → ${bundleText(recipe.output)}` };
+  }
+
+  if (id === "searchSurvivor") {
+    const why = searchBlockReason(state);
+    if (why) return no(why);
+    return { ok: true, cost: {}, preview: `발견 확률 ${Math.round((state.phase === "night" ? SURVIVOR_RULES.searchChanceNight : SURVIVOR_RULES.searchChance) * 100)}%` };
+  }
+  if (id === "rescue") {
+    const why = rescueBlockReason(state);
+    if (why) return no(why);
+    const p = state.pending.find((x) => x.stage === "found")!;
+    return { ok: true, cost: {}, preview: `${p.survivor.name}을(를) 데려온다` };
   }
 
   if (id === "explore") return { ok: true, cost: {}, preview: `무작위 발견${nightNote}` };
@@ -133,7 +150,12 @@ export function doAction(state: GameState, id: ActionId, target?: ActionTarget):
   let gained: ResourceBundle = {};
   let text = "";
 
-  if (id === "explore") {
+  if (id === "searchSurvivor" || id === "rescue") {
+    const r = id === "searchSurvivor" ? doSearch({ ...s, seed }) : doRescue(s);
+    s = r.state;
+    seed = s.seed;
+    text = r.text;
+  } else if (id === "explore") {
     let entry: (typeof EXPLORE_TABLE)[number];
     [entry, seed] = pickWeighted(seed, EXPLORE_TABLE);
     [gained, seed] = rollYields(seed, entry.yields, rate);
@@ -190,7 +212,12 @@ export function doAction(state: GameState, id: ActionId, target?: ActionTarget):
     gained,
     spent: check.cost,
   };
-  s = { ...s, lastAction: result };
+  // 플레이어 피로
+  s = {
+    ...s,
+    lastAction: result,
+    survivors: s.survivors.map((x) => (x.isPlayer ? { ...x, fatigue: Math.min(100, x.fatigue + SURVIVOR_RULES.actionFatigue) } : x)),
+  };
   const gainText = Object.keys(gained).length ? ` (+${bundleText(gained)})` : "";
   const spentText = Object.keys(check.cost).length ? ` (-${bundleText(check.cost)})` : "";
   return withLog(s, `[${def.name}] ${text}${gainText}${spentText}`, "build");

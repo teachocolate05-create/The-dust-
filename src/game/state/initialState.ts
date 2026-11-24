@@ -2,9 +2,10 @@ import { FACILITY_BY_ID } from "../config/facilities";
 import { parseLayout, STATION_LAYOUT } from "../config/map";
 import { STARTING_RESOURCES } from "../config/resources";
 import { RULES } from "../config/rules";
+import { createPlayer } from "../systems/survivors";
 import type { FacilityTypeId, GameState, Rect, Room, RoomTypeId } from "../core/types";
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 // 시작 시 역사에 남아 있는 공간 (기획서 2-2, 2-3)
 interface PresetRoom {
@@ -65,6 +66,9 @@ export function createInitialState(seed: number = Date.now() % 2147483647): Game
     seed,
     lastAction: null,
     lines: { power: [], water: [] },
+    survivors: [createPlayer()],
+    pending: [],
+    debrisMarks: [],
     log: [
       {
         day: 1,

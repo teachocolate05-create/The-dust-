@@ -3,6 +3,8 @@ import { RESOURCES } from "../config/resources";
 import { ROOM_TYPE_BY_ID } from "../config/rooms";
 import type { GameState, TileType } from "../core/types";
 import { SAVE_VERSION } from "./initialState";
+import { createPlayer } from "../systems/survivors";
+import { JOB_BY_ID } from "../config/survivors";
 
 // 브라우저 LocalStorage 저장.
 // 불러온 데이터는 반드시 검증한다. 손상된 데이터는 사용하지 않는다.
@@ -42,10 +44,28 @@ export function validateSave(data: any): data is GameState {
   if (data.lastAction !== null && typeof data.lastAction !== "object") return false;
   const isKey = (k: any) => typeof k === "string" && /^\d+,\d+$/.test(k);
   if (!data.lines || !["power", "water"].every((n) => Array.isArray(data.lines[n]) && data.lines[n].every(isKey))) return false;
+  if (!Array.isArray(data.survivors) || data.survivors.length === 0 || !data.survivors[0]?.isPlayer) return false;
+  for (const sv of data.survivors) if (!isSurvivor(sv)) return false;
+  if (!Array.isArray(data.pending) || !data.pending.every((p: any) => p && isSurvivor(p.survivor) && ["found", "arrived"].includes(p.stage) && isInt(p.leavesAfterDay)))
+    return false;
+  if (!Array.isArray(data.debrisMarks) || !data.debrisMarks.every(isKey)) return false;
   return true;
 }
 
-/** 예전 버전 저장 데이터를 현재 형식으로 바꾼다. (1단계 → 2 → 3 → 4단계) */
+function isSurvivor(sv: any): boolean {
+  return (
+    sv &&
+    typeof sv.id === "string" &&
+    typeof sv.name === "string" &&
+    typeof sv.health === "number" &&
+    typeof sv.fatigue === "number" &&
+    !!JOB_BY_ID[sv.job as keyof typeof JOB_BY_ID] &&
+    sv.skills &&
+    ["tech", "medic", "gather", "farm", "manage"].every((k) => typeof sv.skills[k] === "number")
+  );
+}
+
+/** 예전 버전 저장 데이터를 현재 형식으로 바꾼다. (1단계 → … → 5단계) */
 export function migrateSave(data: any): any {
   if (data && data.version === 1) {
     data = { ...data, version: 2, seed: Date.now() % 2147483647, lastAction: null, actionsLeft: data.phase === "maintenance" ? 0 : data.actionsLeft };
@@ -63,6 +83,8 @@ export function migrateSave(data: any): any {
   }
   // 3단계 → 4단계: 기반 시설(전력선·수도관) 추가
   if (data && data.version === 3) data = { ...data, version: 4, lines: { power: [], water: [] } };
+  // 4단계 → 5단계: 생존자 시스템 추가
+  if (data && data.version === 4) data = { ...data, version: 5, survivors: [createPlayer()], pending: [], debrisMarks: [] };
   return data;
 }
 

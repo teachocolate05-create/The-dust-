@@ -152,7 +152,7 @@ export default function ModeBar({ state, mode, check, setMode, setSelection, run
           <span className="mode-title">잔해 정리</span>
           <span className="muted">행동 1회 · 남은 행동 {state.actionsLeft}</span>
         </div>
-        <p className="mode-hint">치울 잔해를 누르세요(누른 칸부터 오른쪽·아래 2×2). 같은 칸을 한 번 더 누르면 바로 정리합니다.</p>
+        <p className="mode-hint">통로와 맞닿은 잔해(점선 표시)를 누르세요. 같은 칸을 한 번 더 누르면 바로 정리합니다. 한 번에 1칸씩 치웁니다.</p>
         {chk && (chk.ok ? <div className="mode-cost small-text">{chk.preview}</div> : <div className="mode-error">{chk.reason}</div>)}
         <div className="btn-row">
           <button
@@ -165,6 +165,40 @@ export default function ModeBar({ state, mode, check, setMode, setSelection, run
             }}
           >
             정리
+          </button>
+          <button className="btn ghost" onClick={cancel}>
+            완료
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode.kind === "markDebris") {
+    return (
+      <div className="mode-bar">
+        <div className="mode-head">
+          <span className="mode-title">잔해 정리 {mode.remove ? "지정 해제" : "지정"}</span>
+          <button className="btn small" onClick={() => setMode({ ...mode, remove: !mode.remove, rect: null, anchor: null })}>
+            {mode.remove ? "지정으로 전환" : "해제로 전환"}
+          </button>
+          <span className="muted small-text">지정된 잔해 {state.debrisMarks.length}칸</span>
+        </div>
+        <p className="mode-hint">드래그로 범위를 고르세요 (모바일은 시작 칸, 끝 칸을 차례로). 범위 안의 잔해만 지정됩니다. 행동 횟수와 자원은 들지 않습니다.</p>
+        {check && !check.ok && <div className="mode-error">{check.reason}</div>}
+        <div className="btn-row">
+          <button
+            className={`btn ${mode.remove ? "danger" : "primary"}`}
+            disabled={!check?.ok || mode.dragging}
+            onClick={() => {
+              if (!mode.rect) return;
+              const pts = [];
+              for (let y = mode.rect.y; y < mode.rect.y + mode.rect.h; y++) for (let x = mode.rect.x; x < mode.rect.x + mode.rect.w; x++) pts.push({ x, y });
+              run({ type: "MARK_DEBRIS", points: pts, on: !mode.remove }, mode.remove ? "지정을 해제했습니다." : "정리할 잔해를 지정했습니다.");
+              setMode({ ...mode, rect: null, anchor: null });
+            }}
+          >
+            {mode.remove ? "해제" : "지정"}
           </button>
           <button className="btn ghost" onClick={cancel}>
             완료

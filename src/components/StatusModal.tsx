@@ -59,8 +59,20 @@ const STAGES: { n: number; title: string; status: "done" | "next" | "todo"; item
       "시작 상태 축소: 임시 거주 구역만, 발전실·창고는 잔해 너머",
     ],
   },
-  { n: 5, title: "생존자", status: "next", items: ["생존자 영입", "업무 배정", "피로도·건강"] },
-  { n: 6, title: "사건 및 저장", status: "todo", items: ["무작위 사건", "사건 기록", "7일 생존 테스트"] },
+  {
+    n: 5,
+    title: "생존자",
+    status: "done",
+    items: [
+      "생존자 수색 → 구조 → 정비 시간에 수용 결정 (침상 필요)",
+      "이름·나이·배경·능력치(기술·채집·의료·농업·관리)",
+      "업무 배정: 휴식·잔해 정리·자원 수집·식량 확보·시설 관리·제작",
+      "능력치·피로·야간에 따른 업무 효율",
+      "피로도(작업·행동·밤잠), 건강(배급 부족·탈진), 위독·이탈",
+      "잔해 정리 지정 구역 · 잔해 정리 행동은 1칸씩",
+    ],
+  },
+  { n: 6, title: "사건 및 저장", status: "next", items: ["무작위 사건", "사건 기록", "7일 생존 테스트"] },
 ];
 
 const LABEL = { done: "작동", next: "다음 단계", todo: "예정" };
@@ -76,8 +88,8 @@ export default function StatusModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <p className="muted small-text">
-          현재 버전은 <b>4단계</b>입니다. 좁은 임시 거주 구역에서 시작해 잔해를 뚫어 발전기와 창고를 되찾고, 정비 시간에
-          전력선과 수도관을 직접 이어 시설을 가동합니다.
+          현재 버전은 <b>5단계</b>입니다. 혼자 시작해 생존자를 찾아 데려오고, 업무를 맡겨 잔해를 치우고 물자를 모읍니다.
+          인원이 늘수록 식량·식수와 침상이 더 필요합니다.
         </p>
         <ul className="stage-list">
           {STAGES.map((s) => (

@@ -15,6 +15,7 @@ export type Mode =
   | { kind: "moveFacility"; roomId: string; facilityId: string; pos: Point | null; rotated: boolean }
   | { kind: "resizeRoom"; roomId: string; rect: Rect }
   | { kind: "clearDebris"; pos: Point | null }
+  | { kind: "markDebris"; remove: boolean; anchor: Point | null; rect: Rect | null; dragging: boolean }
   | { kind: "drawLine"; net: NetKind; remove: boolean; anchor: Point | null; path: Point[] | null; dragging: boolean };
 
 /** 지도에 그릴 선 상태: ok = 정상, dead = 공급원 없음 */

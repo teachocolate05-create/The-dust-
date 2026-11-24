@@ -69,7 +69,7 @@ describe("행동 횟수", () => {
   });
 
   it("미구현 행동은 실행되지 않는다", () => {
-    expect(canDoAction(start(), "rescue").ok).toBe(false);
+    expect(canDoAction(start(), "survey").ok).toBe(false);
   });
 });
 
@@ -85,15 +85,15 @@ describe("건설과 행동의 분리", () => {
 });
 
 describe("잔해 정리", () => {
-  it("통로와 맞닿은 잔해를 바닥으로 바꾸고 자재를 얻는다", () => {
+  it("행동 1회에 통로와 맞닿은 잔해 1칸을 바닥으로 바꾸고 자재 1을 얻는다", () => {
     const s: GameState = { ...start(), resources: { ...start().resources, materials: 30 } };
-    // (14,1)은 통로, (12..13, 1..2)는 잔해 4칸
-    const pos = { x: 12, y: 1 };
-    expect(clearableDebris(s, pos).length).toBe(4);
+    // (14,1)은 통로, (13,1)은 잔해
+    const pos = { x: 13, y: 1 };
+    expect(clearableDebris(s, pos).length).toBe(1);
     const s2 = gameReducer(s, { type: "DO_ACTION", actionId: "clearDebris", target: { kind: "debris", pos } });
-    expect(s2.map[1][12]).toBe("floor");
-    expect(s2.map[2][13]).toBe("floor");
-    expect(s2.resources.materials).toBe(s.resources.materials + 4);
+    expect(s2.map[1][13]).toBe("floor");
+    expect(s2.map[1][12]).toBe("debris");
+    expect(s2.resources.materials).toBe(s.resources.materials + 1);
   });
   it("통로에 닿지 않은 잔해는 치울 수 없다", () => {
     expect(canDoAction(start(), "clearDebris", { kind: "debris", pos: { x: 1, y: 1 } }).ok).toBe(false);

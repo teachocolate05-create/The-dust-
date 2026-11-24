@@ -62,13 +62,27 @@ export const ACTIONS: ActionDef[] = [
     yields: { food: [2, 4], water: [1, 3] },
   },
   { id: "clearThreat", name: "위험 제거", category: "생존", desc: "거점 주변의 위협을 제거한다.", outside: true, implemented: false, plannedStage: 6 },
-  { id: "searchSurvivor", name: "생존자 수색", category: "구조", desc: "다른 생존자의 흔적을 찾는다.", outside: true, implemented: false, plannedStage: 5 },
-  { id: "rescue", name: "생존자 구조", category: "구조", desc: "발견한 생존자를 거점으로 데려온다.", outside: true, implemented: false, plannedStage: 5 },
+  {
+    id: "searchSurvivor",
+    name: "생존자 수색",
+    category: "구조",
+    desc: "주변을 돌며 다른 생존자의 흔적을 찾는다. 발견하면 구조할 수 있다.",
+    outside: true,
+    implemented: true,
+  },
+  {
+    id: "rescue",
+    name: "생존자 구조",
+    category: "구조",
+    desc: "발견한 생존자를 거점 입구까지 데려온다. 수용 여부는 정비 시간에 정한다.",
+    outside: true,
+    implemented: true,
+  },
   {
     id: "clearDebris",
     name: "잔해 정리",
     category: "작업",
-    desc: "통로와 맞닿은 잔해를 2×2 범위까지 치워 바닥으로 만든다. 치운 칸마다 자재 1을 건진다.",
+    desc: "통로와 맞닿은 잔해 1칸을 치워 바닥으로 만든다. 쓸 만한 자재 1을 건진다.",
     outside: false,
     implemented: true,
     needsTarget: "debris",
@@ -115,8 +129,8 @@ export const EXPLORE_TABLE: { weight: number; text: string; yields: YieldTable }
 export const ACTION_RULES = {
   /** 야간 외부 활동 효율 (어두워서 덜 찾는다) */
   nightOutsideRate: 0.6,
-  /** 잔해 정리 범위 */
-  debrisArea: 2,
+  /** 잔해 정리 범위 (1 = 한 번에 1칸) */
+  debrisArea: 1,
   /** 잔해 1칸당 건지는 자재 */
   debrisSalvage: 1,
   /** 직접 수리: 부품 비용과 회복량 */

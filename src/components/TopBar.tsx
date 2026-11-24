@@ -5,6 +5,7 @@ import type { GameState, ResourceId } from "@/game/core/types";
 import type { PhaseForecast } from "@/game/systems/time";
 import { PHASE_NAMES } from "@/game/systems/phase";
 import { RULES } from "@/game/config/rules";
+import { bedCount, population } from "@/game/systems/survivors";
 
 interface Props {
   state: GameState;
@@ -49,6 +50,10 @@ export default function TopBar({ state, cap, forecast, onOpenStatus, onNewGame }
             </span>
           )}
         </div>
+        <span className="pop-chip" title="인원 / 침상">
+          인원 <b>{population(state)}</b>
+          <span className="muted">/침상 {bedCount(state)}</span>
+        </span>
         <div className="top-actions">
           <button className="btn ghost small" onClick={onOpenStatus}>
             개발 현황

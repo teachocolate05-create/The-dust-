@@ -61,7 +61,7 @@ export default function BaseMap(p: Props) {
     return { x, y };
   };
 
-  const dragMode = mode.kind === "createRoom" || mode.kind === "drawLine";
+  const dragMode = mode.kind === "createRoom" || mode.kind === "drawLine" || mode.kind === "markDebris";
 
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     if (!dragMode) return;
@@ -74,7 +74,7 @@ export default function BaseMap(p: Props) {
     const t = toTile(e.clientX, e.clientY);
     if (!t) return;
     if (dragMode) {
-      if ((mode.kind === "createRoom" || mode.kind === "drawLine") && mode.dragging) p.onDragMove(t);
+      if ((mode.kind === "createRoom" || mode.kind === "drawLine" || mode.kind === "markDebris") && mode.dragging) p.onDragMove(t);
     } else if (e.pointerType === "mouse") {
       p.onTileHover(t);
     }
@@ -283,6 +283,12 @@ export default function BaseMap(p: Props) {
         </g>
       );
     }
+  } else if (mode.kind === "markDebris" && mode.rect) {
+    const r = mode.rect;
+    const c = mode.remove ? "#e0604f" : "#f08a3c";
+    preview = (
+      <rect pointerEvents="none" x={r.x * S} y={r.y * S} width={r.w * S} height={r.h * S} fill={c} fillOpacity={0.2} stroke={c} strokeWidth={2.5} strokeDasharray="6 4" />
+    );
   } else if (mode.kind === "drawLine" && mode.path) {
     const color = mode.remove ? "#e0604f" : p.previewOk ? (mode.net === "power" ? "#f2c14e" : "#5fb4d4") : "#e0604f";
     preview = (
@@ -320,6 +326,18 @@ export default function BaseMap(p: Props) {
         )
           debrisHints.push(<rect key={`dh${x},${y}`} x={x * S + 3} y={y * S + 3} width={S - 6} height={S - 6} fill="none" stroke="#f2c14e" strokeWidth={1.5} strokeDasharray="3 3" />);
   }
+
+  // 생존자 잔해 정리 지정 표시
+  const markLayer = state.debrisMarks.map((k) => {
+    const [x, y] = k.split(",").map(Number);
+    if (state.map[y]?.[x] !== "debris") return null;
+    return (
+      <g key={`mk${k}`}>
+        <rect x={x * S + 2} y={y * S + 2} width={S - 4} height={S - 4} fill="#f08a3c22" stroke="#f08a3c" strokeWidth={1.5} />
+        <path d={`M${x * S + 9} ${y * S + 9} L${x * S + S - 9} ${y * S + S - 9} M${x * S + S - 9} ${y * S + 9} L${x * S + 9} ${y * S + S - 9}`} stroke="#f08a3c" strokeWidth={2} />
+      </g>
+    );
+  });
 
   const tileSel =
     selection?.kind === "tile" ? (
@@ -383,6 +401,7 @@ export default function BaseMap(p: Props) {
         {lineLayer}
       </g>
       <g>{labels}</g>
+      <g pointerEvents="none">{markLayer}</g>
       {mode.kind === "clearDebris" && <g pointerEvents="none">{debrisHints}</g>}
       {state.phase === "night" && <rect pointerEvents="none" width={W * S} height={H * S} fill="#0b1636" opacity={0.32} />}
       {state.phase === "afternoon" && <rect pointerEvents="none" width={W * S} height={H * S} fill="#6b3d10" opacity={0.08} />}

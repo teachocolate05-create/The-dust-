@@ -9,11 +9,10 @@ import { bundleText } from "../core/resources";
 import type { GameState, LogEntry, ResourceBundle, ResourceId } from "../core/types";
 import { atRisk, capacity, simulatePeriod, type PeriodSim } from "./operation";
 import { isDayPhase, nextPhase, PHASE_NAMES } from "./phase";
+import { bedCount, expirePending, planWork, population, processNeeds, processSleep, processWork, type WorkPlan } from "./survivors";
+import { SURVIVOR_RULES } from "../config/survivors";
 
-/** 현재 거점 인원. 생존자 영입은 5단계에서 추가되며, 지금은 플레이어 1명이다. */
-export function population(_state: GameState): number {
-  return 1;
-}
+export { population };
 
 export function upkeep(state: GameState): ResourceBundle {
   const people = population(state);
@@ -38,6 +37,8 @@ export interface PhaseForecast {
   /** 저장 공간이 넘쳐 버려지는 양 */
   overflow: ResourceBundle;
   warnings: string[];
+  /** 생존자별 작업 예상 */
+  work: WorkPlan[];
   next: { day: number; phase: GameState["phase"] };
 }
 
@@ -100,6 +101,12 @@ export function forecastPhaseEnd(state: GameState): PhaseForecast {
         else if (atRisk(nextF)) warnings.push(`${name}: 내구도가 낮아 고장 날 수 있습니다. (${nextF.durability})`);
       }
     }
+    for (const w of planWork(state)) if (w.blocked && w.job !== "rest") warnings.push(`${w.name}: ${w.blocked}`);
+    for (const sv of state.survivors) {
+      if (sv.health < SURVIVOR_RULES.criticalHealth) warnings.push(`${sv.name}: 건강이 위독합니다 (${sv.health}). 쉬게 하고 식량·식수를 확보하세요.`);
+      else if (sv.fatigue >= SURVIVOR_RULES.tiredAt && !(sv.job === "rest" && !sv.isPlayer))
+        warnings.push(`${sv.name}: 피로가 높습니다 (${sv.fatigue}). ${sv.isPlayer ? "행동을 줄이세요." : "휴식을 배정하세요."}`);
+    }
     if (state.actionsLeft > 0) warnings.push(`사용하지 않은 행동 ${state.actionsLeft}회는 사라집니다.`);
     if (state.phase === "night") warnings.push("야간이 끝나면 정비 시간이 시작됩니다.");
   }
@@ -115,6 +122,7 @@ export function forecastPhaseEnd(state: GameState): PhaseForecast {
     shortage,
     overflow,
     warnings,
+    work: isDayPhase(state.phase) ? planWork(state) : [],
     next: { day: np === "morning" ? state.day + 1 : state.day, phase: np },
   };
 }
@@ -136,11 +144,15 @@ export function endPhase(state: GameState): GameState {
   if (Object.keys(f.consumption).length) parts.push(`소비 ${bundleText(f.consumption)}`);
   s = addLog(s, `${PHASE_NAMES[state.phase]} 종료 — ${parts.join(" / ") || "변화 없음"}`);
   for (const k of Object.keys(f.shortage) as ResourceId[])
-    s = addLog(s, `${RESOURCE_BY_ID[k].name} 부족! 제대로 먹고 마시지 못했다. (건강 영향은 5단계에서 적용)`, "warn");
+    s = addLog(s, `${RESOURCE_BY_ID[k].name} 부족! 모두 제대로 먹고 마시지 못해 건강이 나빠졌다.`, "warn");
   if (Object.keys(f.overflow).length) s = addLog(s, `저장 공간이 부족해 ${bundleText(f.overflow)}을(를) 버렸다.`, "warn");
 
-  // 2) 내구도 감소와 고장
-  let seed = state.seed;
+  // 2) 생존자 작업과 피로·건강
+  s = processWork(s);
+  s = processNeeds(s, f.shortage);
+
+  // 3) 내구도 감소와 고장
+  let seed = s.seed;
   const breakdowns: string[] = [];
   s = {
     ...s,
@@ -167,7 +179,7 @@ export function endPhase(state: GameState): GameState {
   };
   for (const b of breakdowns) s = addLog(s, b, "warn");
 
-  // 3) 다음 구간
+  // 4) 다음 구간
   const np = nextPhase(state.phase);
   s = { ...s, phase: np, actionsLeft: np === "maintenance" ? 0 : RULES.actionsPerPhase };
   if (np === "maintenance") s = addLog(s, "하루 일과가 끝났다. 정비 시간 — 거점을 정리하고 내일을 준비한다.");
@@ -177,6 +189,8 @@ export function endPhase(state: GameState): GameState {
 /** 정비 시간을 끝내고 다음 날 오전을 시작한다. 하루 단위 처리는 이후 단계에서 여기에 추가한다. */
 export function startNextDay(state: GameState): GameState {
   if (state.phase !== "maintenance") return state;
-  const s: GameState = { ...state, day: state.day + 1, phase: "morning", actionsLeft: RULES.actionsPerPhase };
-  return addLog(s, `${s.day}일차 아침이 밝았다.`);
+  let s: GameState = processSleep(state);
+  s = { ...s, day: state.day + 1, phase: "morning", actionsLeft: RULES.actionsPerPhase };
+  s = expirePending(s);
+  return addLog(s, `${s.day}일차 아침이 밝았다. (인원 ${population(s)}명 · 침상 ${bedCount(s)}개)`);
 }
