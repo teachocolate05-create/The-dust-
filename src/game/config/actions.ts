@@ -51,7 +51,14 @@ export const ACTIONS: ActionDef[] = [
     implemented: true,
     yields: { materials: [3, 6], parts: [0, 2], fuel: [0, 1] },
   },
-  { id: "survey", name: "장소 조사", category: "탐사", desc: "발견한 장소의 상태를 확인한다.", outside: true, implemented: false, plannedStage: 6 },
+  {
+    id: "survey",
+    name: "장소 조사",
+    category: "탐사",
+    desc: "주변 탐색으로 봐 둔 장소를 샅샅이 뒤진다. 장소마다 한 번씩, 물자를 많이 얻는다.",
+    outside: true,
+    implemented: true,
+  },
   {
     id: "forage",
     name: "식량 확보",
@@ -61,7 +68,14 @@ export const ACTIONS: ActionDef[] = [
     implemented: true,
     yields: { food: [2, 4], water: [1, 3] },
   },
-  { id: "clearThreat", name: "위험 제거", category: "생존", desc: "거점 주변의 위협을 제거한다.", outside: true, implemented: false, plannedStage: 6 },
+  {
+    id: "clearThreat",
+    name: "위험 제거",
+    category: "생존",
+    desc: "거점 주변에 나타난 위협을 몰아낸다. 실패하면 다칠 수 있다.",
+    outside: true,
+    implemented: true,
+  },
   {
     id: "searchSurvivor",
     name: "생존자 수색",

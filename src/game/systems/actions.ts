@@ -12,6 +12,8 @@ import { addCapped, hasWorking } from "./operation";
 import { isDayPhase, PHASE_NAMES } from "./phase";
 import { doRescue, doSearch, rescueBlockReason, searchBlockReason } from "./survivors";
 import { SURVIVOR_RULES } from "../config/survivors";
+import { THREAT_RULES } from "../config/events";
+import { clearThreatChance, doClearThreat, doSurvey, maybeDiscoverPlace, nextSurveyTarget, threatInjury } from "./events";
 
 export type ActionTarget =
   | { kind: "debris"; pos: Point }
@@ -57,7 +59,8 @@ function debrisReachable(state: GameState, tiles: Point[]): boolean {
 
 /** 야간 외부 활동이면 효율 감소 */
 function yieldRate(state: GameState, id: ActionId): number {
-  return state.phase === "night" && ACTION_BY_ID[id].outside ? ACTION_RULES.nightOutsideRate : 1;
+  if (!ACTION_BY_ID[id].outside) return 1;
+  return (state.phase === "night" ? ACTION_RULES.nightOutsideRate : 1) * (state.threat ? THREAT_RULES.outsideYieldRate : 1);
 }
 
 export function canDoAction(state: GameState, id: ActionId, target?: ActionTarget): ActionCheck {
@@ -115,7 +118,17 @@ export function canDoAction(state: GameState, id: ActionId, target?: ActionTarge
     return { ok: true, cost: {}, preview: `${p.survivor.name}을(를) 데려온다` };
   }
 
-  if (id === "explore") return { ok: true, cost: {}, preview: `무작위 발견${nightNote}` };
+  if (id === "survey") {
+    const p = nextSurveyTarget(state);
+    if (!p) return no("조사할 장소가 없습니다. '주변 탐색'으로 장소를 먼저 찾으세요.");
+    return { ok: true, cost: {}, preview: `${p.name} 조사${nightNote}` };
+  }
+  if (id === "clearThreat") {
+    if (!state.threat) return no("지금은 거점 주변에 위협이 없습니다.");
+    return { ok: true, cost: {}, preview: `${state.threat.name} · 성공 확률 ${Math.round(clearThreatChance(state) * 100)}%, 실패 시 건강 -${THREAT_RULES.clearFailDamage}` };
+  }
+
+  if (id === "explore") return { ok: true, cost: {}, preview: `무작위 발견 · 새 장소를 찾을 수도 있음${nightNote}` };
 
   const range = Object.entries(def.yields ?? {})
     .map(([k, [a, b]]) => `${RESOURCE_BY_ID[k as ResourceId].name} ${a}~${b}`)
@@ -160,6 +173,21 @@ export function doAction(state: GameState, id: ActionId, target?: ActionTarget):
     [entry, seed] = pickWeighted(seed, EXPLORE_TABLE);
     [gained, seed] = rollYields(seed, entry.yields, rate);
     text = Object.keys(gained).length || !Object.keys(entry.yields).length ? entry.text : "무언가 있었지만 어두워서 챙기지 못했다.";
+    const found = maybeDiscoverPlace({ ...s, seed });
+    s = found.state;
+    seed = s.seed;
+    text += found.text;
+  } else if (id === "survey") {
+    const r = doSurvey({ ...s, seed }, rate);
+    s = r.state;
+    seed = s.seed;
+    gained = r.gained;
+    text = r.text;
+  } else if (id === "clearThreat") {
+    const r = doClearThreat({ ...s, seed });
+    s = r.state;
+    seed = s.seed;
+    text = r.text;
   } else if (id === "scavenge" || id === "forage") {
     [gained, seed] = rollYields(seed, def.yields ?? {}, rate);
     text = Object.keys(gained).length ? (id === "scavenge" ? "폐허를 뒤져 쓸 만한 것을 챙겼다." : "먹을 것과 물을 찾아 돌아왔다.") : "허탕을 쳤다.";
@@ -195,6 +223,13 @@ export function doAction(state: GameState, id: ActionId, target?: ActionTarget):
     text = `작업대에서 ${recipe.name}을(를) 마쳤다.`;
   }
 
+  // 위협이 있으면 밖에서 다칠 수 있다
+  if (def.outside && id !== "clearThreat" && s.threat) {
+    const inj = threatInjury({ ...s, seed }, "player", THREAT_RULES.actionInjuryChance, THREAT_RULES.actionInjuryDamage);
+    s = inj.state;
+    seed = s.seed;
+    text += inj.text;
+  }
   s = { ...s, resources: applyBundle(s.resources, check.cost, -1), seed };
   const capped = addCapped(s, gained);
   s = { ...s, resources: capped.resources };

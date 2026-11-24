@@ -50,6 +50,11 @@ export default function TopBar({ state, cap, forecast, onOpenStatus, onNewGame }
             </span>
           )}
         </div>
+        {state.threat && (
+          <span className="threat-chip" title="밖에서 일하면 다칠 수 있습니다. '위험 제거' 행동으로 없애세요.">
+            위협: {state.threat.name}
+          </span>
+        )}
         <span className="pop-chip" title="인원 / 침상">
           인원 <b>{population(state)}</b>
           <span className="muted">/침상 {bedCount(state)}</span>

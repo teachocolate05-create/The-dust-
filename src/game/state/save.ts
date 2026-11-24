@@ -49,6 +49,11 @@ export function validateSave(data: any): data is GameState {
   if (!Array.isArray(data.pending) || !data.pending.every((p: any) => p && isSurvivor(p.survivor) && ["found", "arrived"].includes(p.stage) && isInt(p.leavesAfterDay)))
     return false;
   if (!Array.isArray(data.debrisMarks) || !data.debrisMarks.every(isKey)) return false;
+  if (data.threat !== null && (typeof data.threat?.name !== "string" || !isInt(data.threat?.sinceDay))) return false;
+  if (!Array.isArray(data.places) || !data.places.every((p: any) => p && typeof p.id === "string" && typeof p.name === "string" && typeof p.surveyed === "boolean"))
+    return false;
+  if (!data.events || !isInt(data.events.serial) || !Array.isArray(data.events.list)) return false;
+  if (data.gameOver !== null && (typeof data.gameOver?.reason !== "string" || !isInt(data.gameOver?.day))) return false;
   return true;
 }
 
@@ -85,6 +90,8 @@ export function migrateSave(data: any): any {
   if (data && data.version === 3) data = { ...data, version: 4, lines: { power: [], water: [] } };
   // 4단계 → 5단계: 생존자 시스템 추가
   if (data && data.version === 4) data = { ...data, version: 5, survivors: [createPlayer()], pending: [], debrisMarks: [] };
+  // 5단계 → 6단계: 사건·위협·장소·게임 오버
+  if (data && data.version === 5) data = { ...data, version: 6, threat: null, places: [], events: { serial: 0, list: [] }, gameOver: null };
   return data;
 }
 

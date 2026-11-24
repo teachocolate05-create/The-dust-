@@ -648,11 +648,29 @@ export function ResourcePanel({ state, forecast, cap }: { state: GameState; fore
 // ─────────────────── 기록 ───────────────────
 
 export function LogPanel({ state }: { state: GameState }) {
+  const [filter, setFilter] = useState<"all" | "event" | "warn">("all");
+  const entries = state.log.filter((e) => filter === "all" || e.kind === filter);
   return (
     <div className="panel-body">
-      <h3 className="panel-title">운영 기록</h3>
+      <div className="panel-title-row spread">
+        <h3 className="panel-title">운영 기록</h3>
+        <div className="seg">
+          {(
+            [
+              ["all", "전체"],
+              ["event", "사건"],
+              ["warn", "경고"],
+            ] as const
+          ).map(([k, label]) => (
+            <button key={k} className={`seg-btn ${filter === k ? "on" : ""}`} onClick={() => setFilter(k)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {entries.length === 0 && <p className="muted small-text">해당하는 기록이 없습니다.</p>}
       <ul className="log-list">
-        {state.log.map((e, i) => (
+        {entries.map((e, i) => (
           <li key={i} className={`log-${e.kind}`}>
             <span className="log-time">
               {e.day}일 {PHASE_NAMES[e.phase]}

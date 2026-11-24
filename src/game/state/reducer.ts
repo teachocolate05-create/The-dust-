@@ -5,6 +5,7 @@ import * as space from "../systems/space";
 import * as time from "../systems/time";
 import * as operation from "../systems/operation";
 import * as network from "../systems/network";
+import { checkGameOver } from "../systems/events";
 import * as survivors from "../systems/survivors";
 import type { JobId } from "../config/survivors";
 import { createInitialState } from "./initialState";
@@ -36,9 +37,12 @@ export type GameAction =
   | { type: "MARK_DEBRIS"; points: Point[]; on: boolean };
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
+  // 게임 오버 후에는 새 게임·불러오기만 가능
+  if (state.gameOver && action.type !== "NEW_GAME" && action.type !== "LOAD") return state;
   const next = applyAction(state, action);
+  if (next === state) return state;
   // 창고 철거 등으로 저장 용량이 줄면 넘치는 자원은 버려진다
-  return next === state ? state : operation.enforceCapacity(next);
+  return checkGameOver(operation.enforceCapacity(next));
 }
 
 function applyAction(state: GameState, action: GameAction): GameState {

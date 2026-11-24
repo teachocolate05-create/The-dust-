@@ -9,6 +9,7 @@ import { bundleText } from "../core/resources";
 import type { GameState, LogEntry, ResourceBundle, ResourceId } from "../core/types";
 import { atRisk, capacity, simulatePeriod, type PeriodSim } from "./operation";
 import { isDayPhase, nextPhase, PHASE_NAMES } from "./phase";
+import { rollEvents } from "./events";
 import { bedCount, expirePending, planWork, population, processNeeds, processSleep, processWork, type WorkPlan } from "./survivors";
 import { SURVIVOR_RULES } from "../config/survivors";
 
@@ -103,10 +104,11 @@ export function forecastPhaseEnd(state: GameState): PhaseForecast {
     }
     for (const w of planWork(state)) if (w.blocked && w.job !== "rest") warnings.push(`${w.name}: ${w.blocked}`);
     for (const sv of state.survivors) {
-      if (sv.health < SURVIVOR_RULES.criticalHealth) warnings.push(`${sv.name}: 건강이 위독합니다 (${sv.health}). 쉬게 하고 식량·식수를 확보하세요.`);
+      if (sv.health < SURVIVOR_RULES.criticalHealth) warnings.push(`${sv.name}: 건강이 위독합니다 (${sv.health}). ${sv.isPlayer ? "0이 되면 게임 오버입니다!" : "쉬게 하고 식량·식수를 확보하세요."}`);
       else if (sv.fatigue >= SURVIVOR_RULES.tiredAt && !(sv.job === "rest" && !sv.isPlayer))
         warnings.push(`${sv.name}: 피로가 높습니다 (${sv.fatigue}). ${sv.isPlayer ? "행동을 줄이세요." : "휴식을 배정하세요."}`);
     }
+    if (state.threat) warnings.push(`위협(${state.threat.name}): 밖에서 일하는 생존자가 다칠 수 있습니다.`);
     if (state.actionsLeft > 0) warnings.push(`사용하지 않은 행동 ${state.actionsLeft}회는 사라집니다.`);
     if (state.phase === "night") warnings.push("야간이 끝나면 정비 시간이 시작됩니다.");
   }
@@ -178,6 +180,9 @@ export function endPhase(state: GameState): GameState {
     seed,
   };
   for (const b of breakdowns) s = addLog(s, b, "warn");
+
+  // 사건
+  s = rollEvents(s);
 
   // 4) 다음 구간
   const np = nextPhase(state.phase);

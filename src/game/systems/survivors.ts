@@ -11,6 +11,8 @@ import type { Check, GameState, LogEntry, PendingSurvivor, Point, ResourceBundle
 import { computeAccess } from "./access";
 import { addCapped, hasWorking } from "./operation";
 import { canModifyBase } from "./phase";
+import { threatInjury } from "./events";
+import { THREAT_RULES } from "../config/events";
 
 export const PLAYER_ID = "player";
 
@@ -232,13 +234,20 @@ export function processWork(state: GameState): GameState {
     let gained: ResourceBundle = {};
     let text = "";
     if (job.yields) {
+      const threatRate = s.threat && job.outside ? THREAT_RULES.outsideYieldRate : 1;
       for (const [k, [a, b]] of Object.entries(job.yields) as [ResourceId, [number, number]][]) {
         let v: number;
         [v, seed] = randomInt(seed, a, b);
-        v = Math.floor(v * f);
+        v = Math.floor(v * f * threatRate);
         if (v > 0) gained[k] = v;
       }
       text = Object.keys(gained).length ? `${job.name}: ${bundleText(gained)}` : `${job.name}: 허탕`;
+      if (job.outside && s.threat) {
+        const inj = threatInjury({ ...s, seed }, sv.id, THREAT_RULES.workInjuryChance, THREAT_RULES.workInjuryDamage);
+        s = inj.state;
+        seed = s.seed;
+        text += inj.text;
+      }
     } else if (sv.job === "debris") {
       const n = sv.skills.gather >= 4 ? 2 : 1;
       let cleared = 0;
@@ -310,9 +319,9 @@ export function processNeeds(state: GameState, shortage: ResourceBundle): GameSt
     if (sv.fatigue >= 100) health -= R.exhaustedHealthLoss;
     if (starving) health -= R.starvationHealthLoss * starving;
     else if (resting) health += R.restHealthGain;
-    health = Math.max(sv.isPlayer ? 1 : 0, Math.min(100, health));
+    health = Math.max(0, Math.min(100, health));
     fatigue = Math.max(0, Math.min(100, fatigue));
-    if (health <= 0) {
+    if (health <= 0 && !sv.isPlayer) {
       s = log(s, `${sv.name}이(가) 버티지 못하고 거점을 떠났다.`, "warn");
       continue;
     }

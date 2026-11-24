@@ -32,10 +32,10 @@ export const BASE_CAPACITY: Record<ResourceId, number> = {
 
 /** 새 게임 시작 자원 */
 export const STARTING_RESOURCES: Record<ResourceId, number> = {
-  food: 24,
-  water: 18,
+  food: 18, // 24 → 18
+  water: 14, // 18 → 14
   power: 0,
   fuel: 12,
   parts: 10,
-  materials: 60,
+  materials: 52, // 60 → 52
 };

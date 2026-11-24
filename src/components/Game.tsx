@@ -8,6 +8,8 @@ import { capacity } from "@/game/systems/operation";
 import { canBuildLines, canRemoveLines, computeNets, linePath } from "@/game/systems/network";
 import NetworkPanel from "./NetworkPanel";
 import SurvivorPanel from "./SurvivorPanel";
+import { EventModal, GameOverModal, TitleScreen } from "./Screens";
+import type { GameEvent, GameState } from "@/game/core/types";
 import { forecastPhaseEnd } from "@/game/systems/time";
 import * as space from "@/game/systems/space";
 import { createInitialState } from "@/game/state/initialState";
@@ -56,18 +58,30 @@ export default function Game() {
     toastTimer.current = setTimeout(() => setToast(null), 2600);
   }, []);
 
-  // ── 불러오기 (브라우저에서만) ──
+  // ── 불러오기 (브라우저에서만): 먼저 시작 화면을 보여 준다 ──
+  const [title, setTitle] = useState<{ saved: GameState | null; corrupt: boolean } | null>(null);
+  const [eventList, setEventList] = useState<GameEvent[] | null>(null);
+  const [gameOverHidden, setGameOverHidden] = useState(false);
+  const eventSerial = useRef(0);
   useEffect(() => {
     const res = loadGame();
-    if (res.status === "ok") dispatch({ type: "LOAD", state: res.state });
-    if (res.status === "corrupt") showToast("저장 데이터가 손상되어 새 게임으로 시작합니다.", "warn");
+    setTitle({ saved: res.status === "ok" ? res.state : null, corrupt: res.status === "corrupt" });
     setReady(true);
-  }, [showToast]);
+  }, []);
 
-  // ── 자동 저장 ──
+  // ── 자동 저장 (시작 화면에서는 저장하지 않는다) ──
   useEffect(() => {
-    if (ready) setSaveOk(saveGame(state));
-  }, [state, ready]);
+    if (ready && !title) setSaveOk(saveGame(state));
+  }, [state, ready, title]);
+
+  // ── 사건 알림 ──
+  useEffect(() => {
+    if (title) return;
+    if (state.events.serial !== eventSerial.current) {
+      eventSerial.current = state.events.serial;
+      if (state.events.list.length) setEventList(state.events.list);
+    }
+  }, [state.events, title]);
 
   // ── 지도 기본 배율: 화면 폭에 맞추되 너무 작아지지 않게 ──
   const fitZoom = useCallback(() => {
@@ -107,15 +121,18 @@ export default function Game() {
   // 구간이 바뀌면 진행 중이던 작업을 취소하고 알맞은 탭으로 이동
   const prevPhase = useRef<string | null>(null);
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || title) {
+      prevPhase.current = null;
+      return;
+    }
     const key = `${state.day}-${state.phase}`;
-    if (prevPhase.current !== null && prevPhase.current !== key) {
+    if (prevPhase.current !== null && prevPhase.current !== key && !state.gameOver) {
       setModeRaw({ kind: "view" });
       setTab(state.phase === "maintenance" ? "build" : "actions");
       showToast(state.phase === "maintenance" ? "정비 시간이 시작되었습니다. 이제 건설할 수 있습니다." : `${state.day}일차 ${PHASE_NAMES[state.phase]}`);
     }
     prevPhase.current = key;
-  }, [state.day, state.phase, ready, showToast]);
+  }, [state.day, state.phase, ready, title, showToast]);
 
   const setMode = useCallback((m: Mode) => {
     setModeRaw(m);
@@ -274,15 +291,24 @@ export default function Game() {
     return () => window.removeEventListener("keydown", onKey);
   }, [mode, statusOpen, advanceOpen, confirmReq]);
 
-  const newGame = () =>
-    ask("현재 진행 상황을 지우고 새 게임을 시작할까요?", () => {
+  const startNewGame = () => {
     clearSave();
     dispatch({ type: "NEW_GAME" });
+    eventSerial.current = 0;
     setModeRaw({ kind: "view" });
     setSelection(null);
-    setTab("base");
+    setTab("actions");
+    setGameOverHidden(false);
+    setEventList(null);
+    setTitle(null);
     showToast("새 게임을 시작했습니다.");
-    }, "새 게임");
+  };
+  const newGame = () => (state.gameOver ? startNewGame() : ask("현재 진행 상황을 지우고 새 게임을 시작할까요?", startNewGame, "새 게임"));
+  const continueGame = (saved: GameState) => {
+    eventSerial.current = saved.events.serial;
+    dispatch({ type: "LOAD", state: saved });
+    setTitle(null);
+  };
 
   const advance = () => {
     setAdvanceOpen(false);
@@ -310,6 +336,7 @@ export default function Game() {
       </div>
     );
   }
+  if (title) return <TitleScreen saved={title.saved} corrupt={title.corrupt} onContinue={continueGame} onNew={startNewGame} />;
 
   return (
     <div className="app">
@@ -328,7 +355,13 @@ export default function Game() {
                 </>
               )}
             </span>
-            <PhaseButton state={state} onClick={() => setAdvanceOpen(true)} />
+            {state.gameOver ? (
+              <button className="btn danger" onClick={() => setGameOverHidden(false)}>
+                게임 오버
+              </button>
+            ) : (
+              <PhaseButton state={state} onClick={() => setAdvanceOpen(true)} />
+            )}
             <div className="zoom">
               <button className="btn small" onClick={() => setTilePx((z) => Math.max(14, z - 4))} aria-label="축소">
                 −
@@ -403,6 +436,8 @@ export default function Game() {
       </main>
       {toast && <div className={`toast toast-${toast.kind}`}>{toast.text}</div>}
       {statusOpen && <StatusModal onClose={() => setStatusOpen(false)} />}
+      {eventList && !state.gameOver && <EventModal events={eventList} state={state} onClose={() => setEventList(null)} />}
+      {state.gameOver && !gameOverHidden && <GameOverModal state={state} onNew={startNewGame} onHide={() => setGameOverHidden(true)} />}
       {advanceOpen && <AdvanceModal state={state} onConfirm={advance} onClose={() => setAdvanceOpen(false)} />}
       {confirmReq && (
         <ConfirmDialog text={confirmReq.text} yesLabel={confirmReq.yes} onYes={confirmReq.onYes} onClose={() => setConfirmReq(null)} />

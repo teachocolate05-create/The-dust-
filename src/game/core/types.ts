@@ -74,7 +74,7 @@ export interface LogEntry {
   day: number;
   phase: Phase;
   text: string;
-  kind: "info" | "build" | "warn";
+  kind: "info" | "build" | "warn" | "event";
 }
 
 export interface GameState {
@@ -102,6 +102,30 @@ export interface GameState {
   pending: PendingSurvivor[];
   /** 생존자가 치울 잔해로 지정한 칸 ("x,y") */
   debrisMarks: string[];
+  /** 거점 주변 위협 (위험 제거 행동으로 없앤다) */
+  threat: { name: string; sinceDay: number } | null;
+  /** 탐색으로 발견한 장소 (장소 조사 행동으로 한 번 뒤질 수 있다) */
+  places: Place[];
+  /** 가장 최근 구간 종료 때 일어난 사건 (화면 알림용) */
+  events: { serial: number; list: GameEvent[] };
+  /** 게임 오버 정보. null이면 진행 중 */
+  gameOver: { day: number; phase: Phase; reason: string } | null;
+}
+
+export interface Place {
+  id: string;
+  type: string;
+  name: string;
+  surveyed: boolean;
+  foundDay: number;
+}
+
+export interface GameEvent {
+  id: string;
+  title: string;
+  text: string;
+  /** good = 이득, bad = 피해 */
+  tone: "good" | "bad";
 }
 
 export type SkillLevels = Record<"tech" | "medic" | "gather" | "farm" | "manage", number>;

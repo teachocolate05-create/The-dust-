@@ -5,7 +5,7 @@ import { RULES } from "../config/rules";
 import { createPlayer } from "../systems/survivors";
 import type { FacilityTypeId, GameState, Rect, Room, RoomTypeId } from "../core/types";
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 // 시작 시 역사에 남아 있는 공간 (기획서 2-2, 2-3)
 interface PresetRoom {
@@ -69,6 +69,10 @@ export function createInitialState(seed: number = Date.now() % 2147483647): Game
     survivors: [createPlayer()],
     pending: [],
     debrisMarks: [],
+    threat: null,
+    places: [],
+    events: { serial: 0, list: [] },
+    gameOver: null,
     log: [
       {
         day: 1,
