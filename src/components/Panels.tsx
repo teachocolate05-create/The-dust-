@@ -9,6 +9,8 @@ import { RULES } from "@/game/config/rules";
 import { area } from "@/game/core/geometry";
 import { bundleText, isEmptyBundle } from "@/game/core/resources";
 import * as operation from "@/game/systems/operation";
+import { ZONES, ZONE_BY_ID } from "@/game/config/zones";
+import { canOpenZone, gateZoneAt, isZoneOpen, lockedZoneAt } from "@/game/systems/zones";
 import type { GameState, ResourceBundle, ResourceId, Room, RoomTypeId } from "@/game/core/types";
 import type { AccessInfo } from "@/game/systems/access";
 import { canModifyBase, PHASE_NAMES } from "@/game/systems/phase";
@@ -72,6 +74,8 @@ export function BasePanel(props: PanelProps) {
     if (room && fac) return <FacilityInfo {...props} room={room} facilityId={fac.id} />;
   }
   if (selection?.kind === "tile") {
+    const zone = lockedZoneAt(state, selection) ?? gateZoneAt(state, selection);
+    if (zone) return <ZoneCard state={state} zoneId={zone.id} run={props.run} />;
     const t = state.map[selection.y][selection.x];
     const info = TILE_INFO[t];
     const corridor = props.access.corridor.has(`${selection.x},${selection.y}`);
@@ -468,12 +472,43 @@ function FacilityInfo({ state, room, facilityId, setSelection, setMode, run, sim
   );
 }
 
+// ─────────────────── 구역 ───────────────────
+
+function ZoneCard({ state, zoneId, run }: { state: GameState; zoneId: string; run: (a: GameAction, msg?: string) => void }) {
+  const z = ZONE_BY_ID[zoneId];
+  const open = isZoneOpen(state, z.id);
+  const chk = canOpenZone(state, z.id);
+  return (
+    <div className={`zone-card ${open ? "open" : ""}`}>
+      <div className="zone-head">
+        <b>{z.name}</b>
+        <span className="grow" />
+        <span className={`status-pill ${open ? "st-running" : "st-off"}`}>{open ? "개방됨" : "봉쇄"}</span>
+      </div>
+      <p className="small-text">{z.desc}</p>
+      {!open && (
+        <>
+          <p className="muted small-text">{z.hint}</p>
+          <div className="btn-row">
+            <CostTag bundle={z.cost} have={state.resources} label="비용" />
+            <button className="btn primary small" disabled={!chk.ok} onClick={() => run({ type: "OPEN_ZONE", zoneId: z.id }, `'${z.name}'을(를) 개방했습니다.`)}>
+              셔터 열기
+            </button>
+          </div>
+          {!chk.ok && <p className="warn-text small-text">{chk.reason}</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─────────────────── 건설 ───────────────────
 
-export function BuildPanel({ state, selection, setSelection, setMode }: PanelProps) {
+export function BuildPanel({ state, selection, setSelection, setMode, run }: PanelProps) {
   const roomId = selection?.kind === "room" || selection?.kind === "facility" ? selection.roomId : null;
   const room = roomId ? space.getRoom(state, roomId) : undefined;
   const canBuild = canModifyBase(state);
+  const hasBench = operation.hasWorking(state, "builder_bench");
   return (
     <div className="panel-body">
       <BuildLockNote state={state} />
@@ -497,6 +532,12 @@ export function BuildPanel({ state, selection, setSelection, setMode }: PanelPro
           </li>
         ))}
       </ul>
+
+      <h3 className="panel-title">구역 개방</h3>
+      <p className="muted small-text">봉쇄된 셔터 앞까지 잔해를 치운 뒤, 자원을 써서 셔터를 엽니다. 새 구역에는 공간과 남은 시설이 있습니다.</p>
+      {ZONES.map((z) => (
+        <ZoneCard key={z.id} state={state} zoneId={z.id} run={run} />
+      ))}
 
       <h3 className="panel-title">시설 설치</h3>
       {!room ? (
@@ -529,7 +570,8 @@ export function BuildPanel({ state, selection, setSelection, setMode }: PanelPro
                 <li key={f.id}>
                   <button
                     className="card"
-                    disabled={!canBuild}
+                    disabled={!canBuild || (f.advanced && !hasBench)}
+                    title={f.advanced && !hasBench ? "가동 중인 건설 작업대가 필요합니다" : ""}
                     onClick={() => setMode({ kind: "placeFacility", roomId: room.id, facilityType: f.id, pos: null, rotated: false })}
                   >
                     <span className="glyph-box" style={{ borderColor: ROOM_TYPE_BY_ID[room.type].color }}>
@@ -538,6 +580,7 @@ export function BuildPanel({ state, selection, setSelection, setMode }: PanelPro
                     <span className="card-main">
                       <span className="card-title">
                         {f.name} <span className="muted">{f.w}×{f.h}</span>
+                        {f.advanced && <span className={`tag ${hasBench ? "tag-ok" : ""}`}>고급{hasBench ? "" : " · 건설 작업대 필요"}</span>}
                       </span>
                       <span className="card-desc">{f.desc}</span>
                       <CostTag bundle={f.cost} have={state.resources} />

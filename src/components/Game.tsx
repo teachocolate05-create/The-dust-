@@ -8,6 +8,7 @@ import { capacity } from "@/game/systems/operation";
 import { canBuildLines, canRemoveLines, computeNets, linePath } from "@/game/systems/network";
 import NetworkPanel from "./NetworkPanel";
 import SurvivorPanel from "./SurvivorPanel";
+import { gateZoneAt, lockedZoneAt } from "@/game/systems/zones";
 import { EventModal, GameOverModal, TitleScreen } from "./Screens";
 import type { GameEvent, GameState } from "@/game/core/types";
 import { forecastPhaseEnd } from "@/game/systems/time";
@@ -191,6 +192,11 @@ export default function Game() {
   // ── 지도 입력 ──
   const onTileClick = (p: Point) => {
     if (mode.kind === "view") {
+      if (lockedZoneAt(state, p) || gateZoneAt(state, p)) {
+        setSelection({ kind: "tile", x: p.x, y: p.y });
+        setTab("base");
+        return;
+      }
       for (const room of state.rooms) {
         const fac = room.facilities.find((f) => pointInRect(p, space.facilityRect(f)));
         if (fac) {

@@ -13,4 +13,4 @@ export function opened(seed = 1): GameState {
 
 export const toMaintenance = (s: GameState): GameState => ({ ...s, phase: "maintenance", actionsLeft: 0 });
 export const toMorning = (s: GameState): GameState => ({ ...s, phase: "morning", actionsLeft: 3 });
-export const rich = (s: GameState): GameState => ({ ...s, resources: { ...s.resources, materials: 60, parts: 20, fuel: 15 } });
+export const rich = (s: GameState): GameState => ({ ...s, resources: { ...s.resources, materials: 55, parts: 15, fuel: 15 } });

@@ -15,9 +15,10 @@ export type TileType =
   | "platform" // 승강장 (통행 가능, 건설 불가)
   | "track" // 선로 (사용 불가)
   | "entrance" // 지상 출입구 계단
-  | "watersource"; // 급수원 (지하수 배관)
+  | "watersource" // 급수원 (지하수 배관)
+  | "sealed"; // 봉쇄된 셔터 (구역 개방으로 열림)
 
-export type RoomTypeId = "residence" | "storage" | "power" | "water" | "workshop";
+export type RoomTypeId = "residence" | "storage" | "power" | "water" | "workshop" | "common";
 
 export type FacilityTypeId =
   | "cot"
@@ -32,7 +33,14 @@ export type FacilityTypeId =
   | "filter"
   | "tank"
   | "workbench"
-  | "toolrack";
+  | "toolrack"
+  | "dining_table"
+  | "builder_bench"
+  | "large_storage"
+  | "pantry"
+  | "big_tank"
+  | "hi_gen"
+  | "big_filter";
 
 /** 시간 구간. 오전/오후/야간 + 정비 시간 */
 export type Phase = "morning" | "afternoon" | "night" | "maintenance";
@@ -108,6 +116,8 @@ export interface GameState {
   places: Place[];
   /** 가장 최근 구간 종료 때 일어난 사건 (화면 알림용) */
   events: { serial: number; list: GameEvent[] };
+  /** 개방한 확장 구역 id */
+  zones: string[];
   /** 게임 오버 정보. null이면 진행 중 */
   gameOver: { day: number; phase: Phase; reason: string } | null;
 }

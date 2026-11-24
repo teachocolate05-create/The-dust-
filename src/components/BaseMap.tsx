@@ -7,6 +7,7 @@ import type { GameState, Point, Rect, TileType } from "@/game/core/types";
 import type { AccessInfo } from "@/game/systems/access";
 import { facilityRect } from "@/game/systems/space";
 import { debrisArea } from "@/game/systems/actions";
+import { ZONES } from "@/game/config/zones";
 import type { LineView, Mode, Selection } from "./uiTypes";
 import type { FacilityStatus } from "@/game/systems/operation";
 
@@ -43,6 +44,7 @@ const TILE_FILL: Record<TileType, string> = {
   track: "#24211c",
   entrance: "#4d4a3c",
   watersource: "#2f4a52",
+  sealed: "#3d3a33",
 };
 
 export default function BaseMap(p: Props) {
@@ -114,6 +116,15 @@ export default function BaseMap(p: Props) {
             {[0, 1, 2, 3].map((i) => (
               <rect key={i} x={px + 3} y={py + 4 + i * 7} width={S - 6} height={4} fill="#8a8466" />
             ))}
+          </g>,
+        );
+      if (t === "sealed")
+        tiles.push(
+          <g key={`s${x},${y}`}>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <rect key={i} x={px + 2} y={py + 2 + i * 6} width={S - 4} height={4} fill={i % 2 ? "#6b655c" : "#857e70"} />
+            ))}
+            <rect x={px + 1} y={py + 1} width={S - 2} height={S - 2} fill="none" stroke="#c9a227" strokeWidth={2} strokeDasharray="4 3" />
           </g>,
         );
       if (t === "watersource")
@@ -401,6 +412,20 @@ export default function BaseMap(p: Props) {
         {lineLayer}
       </g>
       <g>{labels}</g>
+      <g pointerEvents="none">
+        {ZONES.filter((z) => !state.zones.includes(z.id)).map((z) => (
+          <g key={`fog${z.id}`}>
+            <rect x={z.rect.x * S} y={z.rect.y * S} width={z.rect.w * S} height={z.rect.h * S} fill="#0b0906" opacity={0.86} />
+            <rect x={z.rect.x * S} y={z.rect.y * S} width={z.rect.w * S} height={z.rect.h * S} fill="url(#rock)" />
+            <text x={(z.rect.x + z.rect.w / 2) * S} y={(z.rect.y + z.rect.h / 2) * S - 4} textAnchor="middle" fontSize={15} fontWeight={800} fill="#a39882">
+              {z.name}
+            </text>
+            <text x={(z.rect.x + z.rect.w / 2) * S} y={(z.rect.y + z.rect.h / 2) * S + 14} textAnchor="middle" fontSize={11} fill="#7d7464">
+              봉쇄 구역 · 셔터를 열어 개방
+            </text>
+          </g>
+        ))}
+      </g>
       <g pointerEvents="none">{markLayer}</g>
       {mode.kind === "clearDebris" && <g pointerEvents="none">{debrisHints}</g>}
       {state.phase === "night" && <rect pointerEvents="none" width={W * S} height={H * S} fill="#0b1636" opacity={0.32} />}

@@ -310,12 +310,17 @@ export function processWork(state: GameState): GameState {
 /** 구간 종료 시 피로·건강 변화. shortage: 배급하지 못한 자원 */
 export function processNeeds(state: GameState, shortage: ResourceBundle): GameState {
   const starving = Object.keys(shortage).length;
+  // 공동 생활실 식탁 등: 쉬는 생존자 추가 회복 (가장 큰 효과 하나만)
+  const access = computeAccess(state);
+  let restBonus = 0;
+  for (const room of state.rooms)
+    if (access.roomAccess[room.id]) for (const f of room.facilities) restBonus = Math.max(restBonus, FACILITY_BY_ID[f.type].restBonus);
   const out: Survivor[] = [];
   let s = state;
   for (const sv of state.survivors) {
     let { health, fatigue } = sv;
     const resting = !sv.isPlayer && (sv.job === "rest" || sv.fatigue >= 100);
-    if (!sv.isPlayer) fatigue = resting ? fatigue - R.restRecovery : fatigue + R.workFatigue;
+    if (!sv.isPlayer) fatigue = resting ? fatigue - R.restRecovery - restBonus : fatigue + R.workFatigue;
     if (sv.fatigue >= 100) health -= R.exhaustedHealthLoss;
     if (starving) health -= R.starvationHealthLoss * starving;
     else if (resting) health += R.restHealthGain;

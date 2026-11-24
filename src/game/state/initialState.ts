@@ -5,10 +5,20 @@ import { RULES } from "../config/rules";
 import { createPlayer } from "../systems/survivors";
 import type { FacilityTypeId, GameState, Rect, Room, RoomTypeId } from "../core/types";
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
+
+/** 확장 구역 안에 남아 있는 방 (구역을 열고 길을 뚫어야 쓸 수 있다) */
+export const ZONE_PRESET_ROOMS: PresetRoom[] = [
+  {
+    name: "버려진 자재 창고",
+    type: "storage",
+    rect: { x: 36, y: 4, w: 3, h: 2 },
+    facilities: [{ type: "crate", x: 36, y: 4, durability: 50 }],
+  },
+];
 
 // 시작 시 역사에 남아 있는 공간 (기획서 2-2, 2-3)
-interface PresetRoom {
+export interface PresetRoom {
   name: string;
   type: RoomTypeId;
   rect: Rect;
@@ -34,6 +44,7 @@ const PRESET_ROOMS: PresetRoom[] = [
     rect: { x: 22, y: 4, w: 3, h: 2 },
     facilities: [{ type: "shelf", x: 22, y: 4, durability: 70 }],
   },
+  ...ZONE_PRESET_ROOMS,
 ];
 
 export function createInitialState(seed: number = Date.now() % 2147483647): GameState {
@@ -73,6 +84,7 @@ export function createInitialState(seed: number = Date.now() % 2147483647): Game
     places: [],
     events: { serial: 0, list: [] },
     gameOver: null,
+    zones: [],
     log: [
       {
         day: 1,

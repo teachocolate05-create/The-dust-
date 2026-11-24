@@ -9,26 +9,28 @@ import type { TileType } from "../core/types";
 //
 //   #  암반·외벽        .  바닥(건설 가능)    d  잔해(정리 필요)
 //   P  구조 기둥        =  승강장(통행만)      T  선로
-//   E  지상 출입구      W  급수원
+//   E  지상 출입구      W  급수원             S  봉쇄된 셔터 (구역 개방으로 열림)
+//
+// 30열부터 오른쪽은 확장 구역이다 (config/zones.ts). 처음에는 셔터로 막혀 있다.
 // ─────────────────────────────────────────────────────────────
 export const STATION_LAYOUT: string[] = [
-  "##############EE##############",
-  "#ddddddddddddd..ddddddddddddd#",
-  "#ddddddddddddd..ddddddddddddd#",
-  "#ddddddPdddd......dddPddddddd#",
-  "#ddddddddddd......dddd...dddd#",
-  "#ddddddddddd......dddd...dddd#",
-  "#dddddddddddddddddddddddddddd#",
-  "#ddddddPddddddPddddddPddddddd#",
-  "#dddddddddddddddddddddddddddd#",
-  "#Wd....dddddddddddddddddddddd#",
-  "#dd....dddddddddddddddddddddd#",
-  "#dd....dddddddddddddddddddddd#",
-  "#============================#",
-  "#============================#",
-  "#TTTTTTTTTTTTTTTTTTTTTTTTTTTT#",
-  "#TTTTTTTTTTTTTTTTTTTTTTTTTTTT#",
-  "##############################",
+  "##############EE##############################",
+  "#ddddddddddddd..ddddddddddddd#ddddddddddddddd#",
+  "#ddddddddddddd..ddddddddddddd#ddddddddddddddd#",
+  "#ddddddPdddd......dddPddddddd#ddddPddddddPddd#",
+  "#ddddddddddd......dddd...ddddSdddddd...dddddd#",
+  "#ddddddddddd......dddd...ddddSdddddd...dddddd#",
+  "#dddddddddddddddddddddddddddd#ddddddddddddddd#",
+  "#ddddddPddddddPddddddPddddddd#ddddPddddddPddd#",
+  "#dddddddddddddddddddddddddddd#ddddddddddddddd#",
+  "#Wd....dddddddddddddddddddddd#ddddddddddddddd#",
+  "#dd....dddddddddddddddddddddd#ddddddddddddddd#",
+  "#dd....dddddddddddddddddddddd########SS#######",
+  "#============================#d..d..d..d..d.W#",
+  "#============================#..d..d..d..d..d#",
+  "#TTTTTTTTTTTTTTTTTTTTTTTTTTTT#TTTTTTTTTTTTTTT#",
+  "#TTTTTTTTTTTTTTTTTTTTTTTTTTTT#TTTTTTTTTTTTTTT#",
+  "##############################################",
 ];
 
 const CHAR_TO_TILE: Record<string, TileType> = {
@@ -40,6 +42,7 @@ const CHAR_TO_TILE: Record<string, TileType> = {
   T: "track",
   E: "entrance",
   W: "watersource",
+  S: "sealed",
 };
 
 export function parseLayout(layout: string[]): TileType[][] {
@@ -67,6 +70,10 @@ export const TILE_INFO: Record<TileType, { name: string; desc: string }> = {
   platform: { name: "승강장", desc: "통로로 쓸 수 있지만 방을 지을 수는 없습니다." },
   track: { name: "선로", desc: "운행이 멈춘 선로입니다. 사용할 수 없습니다." },
   entrance: { name: "지상 출입구", desc: "지상으로 이어지는 계단입니다. 모든 통로는 여기서 시작됩니다." },
+  sealed: {
+    name: "봉쇄된 셔터",
+    desc: "녹슨 방화 셔터가 내려져 있다. 너머에 다른 구역이 있다. 정비 시간에 '구역 개방'으로 열 수 있다.",
+  },
   watersource: {
     name: "급수원",
     desc: "지하수 배관입니다. 4단계 수도망에서 정수실과 연결할 예정입니다.",

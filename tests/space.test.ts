@@ -25,7 +25,7 @@ describe("시작 맵", () => {
     expect(access.roomAccess[byName("비상 발전실").id]).toBe(false);
     expect(access.roomAccess[byName("옛 창고").id]).toBe(false);
     // 정리된 바닥은 거주 구역 주변뿐
-    const floor = s.map.flat().filter((t) => t === "floor").length;
+    const floor = s.map.flatMap((row) => row.slice(0, 29)).filter((t) => t === "floor").length;
     expect(floor).toBeLessThan(50);
   });
 });
@@ -107,13 +107,14 @@ describe("시설 배치", () => {
 });
 
 describe("출입 판정", () => {
-  it("잔해를 치운 맵에서는 모든 방이 출입 가능", () => {
+  it("잔해를 치운 맵에서는 봉쇄 구역 밖의 모든 방이 출입 가능", () => {
     const s = fresh();
     const access = computeAccess(s);
-    expect(s.rooms.every((r) => access.roomAccess[r.id])).toBe(true);
+    expect(s.rooms.filter((r) => r.rect.x < 29).every((r) => access.roomAccess[r.id])).toBe(true);
+    expect(access.roomAccess[s.rooms.find((r) => r.name === "버려진 자재 창고")!.id]).toBe(false);
   });
   it("통로를 막으면 방이 고립된다", () => {
-    let s = fresh();
+    let s = { ...fresh(), resources: { ...fresh().resources, materials: 40 } };
     // 출입구(14~15,0) 바로 아래를 가로로 막는 방
     s = gameReducer(s, { type: "CREATE_ROOM", rect: { x: 8, y: 1, w: 14, h: 2 }, roomType: "storage" });
     const access = computeAccess(s);

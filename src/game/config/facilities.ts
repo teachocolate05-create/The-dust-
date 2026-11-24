@@ -31,6 +31,11 @@ export interface FacilityDef {
   /** 구간당 물 소비량 — 4단계 수도망 */
   waterUse: number;
 
+  /** 고급 설비: 가동 중인 건설 작업대가 있어야 지을 수 있다 */
+  advanced: boolean;
+  /** 쉬는 생존자의 구간당 추가 피로 회복 (공동 생활실) */
+  restBonus: number;
+
   /** 지도에 쓰는 짧은 표시 */
   glyph: string;
   desc: string;
@@ -48,17 +53,19 @@ const base = {
   storage: {},
   beds: 0,
   waterUse: 0,
+  advanced: false,
+  restBonus: 0,
 };
 
 export const FACILITIES: FacilityDef[] = [
   // 거주실
   { ...base, id: "cot", name: "간이 침상", w: 2, h: 1, room: "residence", cost: { materials: 4 }, beds: 1, glyph: "침상", desc: "낡은 매트를 깐 1인용 침상." },
   { ...base, id: "bunk", name: "이층 침대", w: 2, h: 2, room: "residence", cost: { materials: 10, parts: 2 }, beds: 2, glyph: "2층", desc: "공간을 아끼는 2인용 침대." },
-  { ...base, id: "locker", name: "사물함", w: 1, h: 1, room: "residence", cost: { materials: 3 }, storage: { food: 5, parts: 5 }, glyph: "함", desc: "개인 물품과 비상식량을 보관합니다." },
+  { ...base, id: "locker", name: "사물함", w: 1, h: 1, room: "residence", cost: { materials: 3 }, storage: { food: 3, parts: 3 }, glyph: "함", desc: "개인 물품과 비상식량을 보관합니다." },
   // 창고
-  { ...base, id: "shelf", name: "보관 선반", w: 2, h: 1, room: "storage", cost: { materials: 5 }, storage: { materials: 20, parts: 10 }, glyph: "선반", desc: "자재와 부품을 쌓아 두는 선반." },
-  { ...base, id: "foodbox", name: "식량 보관함", w: 1, h: 1, room: "storage", cost: { materials: 4, parts: 1 }, storage: { food: 30, water: 10 }, glyph: "식", desc: "밀폐형 식량 보관함." },
-  { ...base, id: "crate", name: "자재 적재대", w: 2, h: 2, room: "storage", cost: { materials: 6 }, storage: { materials: 40, fuel: 15 }, glyph: "적재", desc: "건설 자재와 연료통을 쌓아 둡니다." },
+  { ...base, id: "shelf", name: "보관 선반", w: 2, h: 1, room: "storage", cost: { materials: 5 }, storage: { materials: 15, parts: 10 }, glyph: "선반", desc: "자재와 부품을 쌓아 두는 선반." },
+  { ...base, id: "foodbox", name: "식량 보관함", w: 1, h: 1, room: "storage", cost: { materials: 4, parts: 1 }, storage: { food: 10, water: 5 }, glyph: "식", desc: "밀폐형 식량 보관함." },
+  { ...base, id: "crate", name: "자재 적재대", w: 2, h: 2, room: "storage", cost: { materials: 6 }, storage: { materials: 30, fuel: 15 }, glyph: "적재", desc: "건설 자재와 연료통을 쌓아 둡니다." },
   // 발전실
   {
     ...base,
@@ -81,9 +88,17 @@ export const FACILITIES: FacilityDef[] = [
   { ...base, id: "switchboard", name: "배전반", w: 1, h: 1, room: "power", cost: { materials: 4, parts: 3 }, storage: { fuel: 10 }, glyph: "배전", desc: "연료 보관 공간이 딸린 배전반. 4단계 전력망의 분기점이 됩니다." },
   // 정수실
   { ...base, id: "filter", name: "정수 필터", w: 2, h: 2, room: "water", cost: { materials: 12, parts: 5 }, operates: true, decay: 2, power: -2, produces: { water: 4 }, glyph: "정수", desc: "원수를 걸러 식수로 만듭니다. 전력이 필요합니다." },
-  { ...base, id: "tank", name: "저수 탱크", w: 2, h: 2, room: "water", cost: { materials: 10 }, storage: { water: 40 }, glyph: "탱크", desc: "정수한 물을 저장합니다." },
+  { ...base, id: "tank", name: "저수 탱크", w: 2, h: 2, room: "water", cost: { materials: 10 }, storage: { water: 20 }, glyph: "탱크", desc: "정수한 물을 저장합니다." },
   // 작업실
   { ...base, id: "workbench", name: "작업대", w: 2, h: 1, room: "workshop", cost: { materials: 8, parts: 2 }, operates: true, decay: 1, power: -1, glyph: "작업", desc: "전력이 들어오면 '직접 제작' 행동을 할 수 있습니다." },
+  // ── 업데이트 1: 거점 확장 ──
+  { ...base, id: "builder_bench", name: "건설 작업대", w: 3, h: 2, room: "workshop", cost: { materials: 20, parts: 8 }, operates: true, decay: 1, power: -2, glyph: "건설대", desc: "고급 설비를 만들 수 있게 하는 대형 작업대. 전력이 들어와야 합니다." },
+  { ...base, id: "dining_table", name: "식탁", w: 2, h: 2, room: "common", cost: { materials: 8 }, restBonus: 10, glyph: "식탁", desc: "쉬는 생존자의 피로 회복 +10 (거점에 하나만 있어도 효과)." },
+  { ...base, id: "large_storage", name: "대형 저장고", w: 3, h: 2, room: "storage", cost: { materials: 25, parts: 6 }, advanced: true, storage: { materials: 60, parts: 20, fuel: 10 }, glyph: "대형", desc: "고급 설비. 자재·부품·연료를 대량으로 보관합니다." },
+  { ...base, id: "pantry", name: "식품 저장 선반", w: 2, h: 2, room: "storage", cost: { materials: 12, parts: 3 }, advanced: true, storage: { food: 25, water: 10 }, glyph: "식품", desc: "고급 설비. 서늘하게 밀폐된 식품 선반." },
+  { ...base, id: "big_tank", name: "대형 물탱크", w: 3, h: 2, room: "water", cost: { materials: 20, parts: 4 }, advanced: true, storage: { water: 50 }, glyph: "대형탱크", desc: "고급 설비. 식수를 대량으로 저장합니다." },
+  { ...base, id: "hi_gen", name: "고효율 발전기", w: 3, h: 2, room: "power", cost: { materials: 30, parts: 15 }, advanced: true, operates: true, decay: 1, power: 20, consumes: { fuel: 2 }, glyph: "고효율", desc: "고급 설비. 같은 연료로 훨씬 많은 전력을 만들고 덜 닳습니다." },
+  { ...base, id: "big_filter", name: "대형 정수기", w: 3, h: 2, room: "water", cost: { materials: 25, parts: 10 }, advanced: true, operates: true, decay: 1, power: -3, produces: { water: 8 }, glyph: "대형정수", desc: "고급 설비. 급수원 원수 8을 모두 정수합니다." },
   { ...base, id: "toolrack", name: "공구함", w: 1, h: 1, room: "workshop", cost: { materials: 4, parts: 1 }, glyph: "공구", desc: "있으면 '직접 수리' 행동의 회복량이 늘어납니다." },
 ];
 

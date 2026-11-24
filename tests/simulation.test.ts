@@ -152,6 +152,6 @@ describe("방치하면 게임 오버", () => {
     while (!s.gameOver && guard++ < 200) s = gameReducer(s, s.phase === "maintenance" ? { type: "START_NEXT_DAY" } : { type: "END_PHASE" });
     expect(s.gameOver).not.toBeNull();
     console.log(`방치 시 게임 오버: ${s.gameOver!.day}일차`);
-    expect(s.gameOver!.day).toBeGreaterThanOrEqual(5);
+    expect(s.gameOver!.day).toBeGreaterThanOrEqual(3);
   });
 });

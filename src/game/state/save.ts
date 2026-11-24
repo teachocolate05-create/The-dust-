@@ -2,7 +2,8 @@ import { FACILITY_BY_ID } from "../config/facilities";
 import { RESOURCES } from "../config/resources";
 import { ROOM_TYPE_BY_ID } from "../config/rooms";
 import type { GameState, TileType } from "../core/types";
-import { SAVE_VERSION } from "./initialState";
+import { SAVE_VERSION, ZONE_PRESET_ROOMS } from "./initialState";
+import { parseLayout, STATION_LAYOUT } from "../config/map";
 import { createPlayer } from "../systems/survivors";
 import { JOB_BY_ID } from "../config/survivors";
 
@@ -11,7 +12,7 @@ import { JOB_BY_ID } from "../config/survivors";
 
 export const SAVE_KEY = "the-dust-save";
 
-const TILES: TileType[] = ["rock", "floor", "debris", "pillar", "platform", "track", "entrance", "watersource"];
+const TILES: TileType[] = ["rock", "floor", "debris", "pillar", "platform", "track", "entrance", "watersource", "sealed"];
 const PHASES = ["morning", "afternoon", "night", "maintenance"];
 
 const isInt = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v);
@@ -53,6 +54,7 @@ export function validateSave(data: any): data is GameState {
   if (!Array.isArray(data.places) || !data.places.every((p: any) => p && typeof p.id === "string" && typeof p.name === "string" && typeof p.surveyed === "boolean"))
     return false;
   if (!data.events || !isInt(data.events.serial) || !Array.isArray(data.events.list)) return false;
+  if (!Array.isArray(data.zones) || !data.zones.every((z: any) => typeof z === "string")) return false;
   if (data.gameOver !== null && (typeof data.gameOver?.reason !== "string" || !isInt(data.gameOver?.day))) return false;
   return true;
 }
@@ -92,6 +94,30 @@ export function migrateSave(data: any): any {
   if (data && data.version === 4) data = { ...data, version: 5, survivors: [createPlayer()], pending: [], debrisMarks: [] };
   // 5단계 → 6단계: 사건·위협·장소·게임 오버
   if (data && data.version === 5) data = { ...data, version: 6, threat: null, places: [], events: { serial: 0, list: [] }, gameOver: null };
+  // 6단계 → 업데이트 1: 확장 구역이 붙은 넓은 맵, 구역 안의 방
+  if (data && data.version === 6 && Array.isArray(data.map) && Array.isArray(data.rooms)) {
+    const fresh = parseLayout(STATION_LAYOUT);
+    const oldW = data.map[0]?.length ?? 0;
+    // 기존 맵에서 플레이어가 바꾼 부분(29열 왼쪽)은 그대로 두고, 오른쪽은 새 맵으로 붙인다
+    const map = fresh.map((row, y) => row.map((t, x) => (x < Math.min(29, oldW) && data.map[y]?.[x] ? data.map[y][x] : t)));
+    let nextId = data.nextId;
+    const extra = ZONE_PRESET_ROOMS.map((p) => ({
+      id: `room${nextId++}`,
+      name: p.name,
+      type: p.type,
+      rect: p.rect,
+      facilities: p.facilities.map((f) => ({
+        id: `fac${nextId++}`,
+        type: f.type,
+        x: f.x,
+        y: f.y,
+        rotated: f.rotated ?? false,
+        durability: f.durability ?? FACILITY_BY_ID[f.type].maxDurability,
+        enabled: true,
+      })),
+    }));
+    data = { ...data, version: 7, map, rooms: [...data.rooms, ...extra], nextId, zones: [] };
+  }
   return data;
 }
 

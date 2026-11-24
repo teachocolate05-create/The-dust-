@@ -19,6 +19,7 @@ import type {
   RoomTypeId,
 } from "../core/types";
 import { canModifyBase, NOT_MAINTENANCE_REASON } from "./phase";
+import { hasWorking } from "./operation";
 
 // ───────────── 공통 도우미 ─────────────
 
@@ -233,6 +234,8 @@ export function canPlaceFacility(
   const def = FACILITY_BY_ID[type];
   if (!def.buildable) return fail(`${def.name}은(는) 새로 건설할 수 없습니다.`);
   if (def.room !== room.type) return fail(`${def.name}은(는) ${ROOM_TYPE_BY_ID[def.room].name}에만 설치할 수 있습니다.`);
+  if (def.advanced && !hasWorking(state, "builder_bench"))
+    return fail("고급 설비입니다. 작업실에 전력이 들어오는 '건설 작업대'가 있어야 지을 수 있습니다.");
   const err = checkFacilitySpot(room, facilityRect({ type, x, y, rotated }));
   if (err) return fail(err);
   if (!canAfford(state.resources, def.cost)) return fail(missingText(state.resources, def.cost));

@@ -1528,3 +1528,27 @@ b {
   color: var(--accent-2);
   font-weight: 700;
 }
+
+/* ───────── 업데이트 1: 구역 ───────── */
+.zone-card {
+  background: var(--panel-2);
+  border: 1px dashed var(--line-2);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.zone-card.open {
+  border-style: solid;
+  opacity: 0.75;
+}
+.zone-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tag.tag-ok {
+  background: #2f5a2f;
+  color: #d6f5d6;
+}

@@ -85,9 +85,22 @@ const STAGES: { n: number; title: string; status: "done" | "next" | "todo"; item
       "자동 7일 생존 테스트 (20개 시드 × 10일)",
     ],
   },
+  {
+    n: 7,
+    title: "업데이트 1 · 거점 확장",
+    status: "done",
+    items: [
+      "확장 구역 2곳: 동쪽 대합실(버려진 자재 창고), 동쪽 정비 구역(두 번째 급수원)",
+      "봉쇄 셔터 앞까지 길을 뚫고 정비 시간에 '셔터 열기'",
+      "새 방: 공동 생활실 (식탁: 쉬는 생존자 회복 +10)",
+      "건설 작업대 → 고급 설비: 대형 저장고·식품 저장 선반·대형 물탱크·고효율 발전기·대형 정수기",
+      "저장 용량: 기본 식량·식수 10, 자재 40 + 출입 가능한 방의 저장 시설만큼 증가",
+    ],
+  },
 ];
 
 const LABEL = { done: "작동", next: "다음 단계", todo: "예정" };
+// n 7 이상은 MVP 이후 업데이트
 
 export default function StatusModal({ onClose }: { onClose: () => void }) {
   return (
@@ -100,14 +113,14 @@ export default function StatusModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <p className="muted small-text">
-          현재 버전은 <b>6단계(MVP 완성)</b>입니다. 사건이 일어나고, 플레이어가 쓰러지면 게임이 끝납니다. 이후 확장(거점 확장,
-          생존자 생활, 자급자족, 외부 세계)은 기획서 14장 순서로 진행할 수 있습니다.
+          현재 버전은 <b>MVP + 업데이트 1(거점 확장)</b>입니다. 셔터 너머 새 구역을 열고, 건설 작업대로 고급 설비를 지을 수 있습니다.
+          다음 확장: 생존자 생활, 자급자족, 외부 세계 (기획서 14장).
         </p>
         <ul className="stage-list">
           {STAGES.map((s) => (
             <li key={s.n} className={`stage stage-${s.status}`}>
               <div className="stage-head">
-                <span className="stage-n">{s.n}단계</span>
+                <span className="stage-n">{s.n > 6 ? `업데이트 ${s.n - 6}` : `${s.n}단계`}</span>
                 <span className="stage-title">{s.title}</span>
                 <span className={`badge badge-${s.status}`}>{LABEL[s.status]}</span>
               </div>

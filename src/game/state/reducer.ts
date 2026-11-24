@@ -6,6 +6,7 @@ import * as time from "../systems/time";
 import * as operation from "../systems/operation";
 import * as network from "../systems/network";
 import { checkGameOver } from "../systems/events";
+import { openZone } from "../systems/zones";
 import * as survivors from "../systems/survivors";
 import type { JobId } from "../config/survivors";
 import { createInitialState } from "./initialState";
@@ -34,15 +35,18 @@ export type GameAction =
   | { type: "SET_JOB"; survivorId: string; job: JobId }
   | { type: "ACCEPT_SURVIVOR"; index: number }
   | { type: "DISMISS_SURVIVOR"; index: number }
-  | { type: "MARK_DEBRIS"; points: Point[]; on: boolean };
+  | { type: "MARK_DEBRIS"; points: Point[]; on: boolean }
+  | { type: "OPEN_ZONE"; zoneId: string };
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   // 게임 오버 후에는 새 게임·불러오기만 가능
   if (state.gameOver && action.type !== "NEW_GAME" && action.type !== "LOAD") return state;
   const next = applyAction(state, action);
   if (next === state) return state;
-  // 창고 철거 등으로 저장 용량이 줄면 넘치는 자원은 버려진다
-  return checkGameOver(operation.enforceCapacity(next));
+  // 저장 시설을 철거·용도 변경해 용량이 줄면 넘치는 자원은 버려진다.
+  // (길이 막혀 창고에 못 가는 경우에는 버리지 않고, 새로 얻는 양만 막힌다)
+  const shrink = action.type === "REMOVE_FACILITY" || action.type === "DELETE_ROOM" || action.type === "CHANGE_ROOM_TYPE";
+  return checkGameOver(shrink ? operation.enforceCapacity(next) : next);
 }
 
 function applyAction(state: GameState, action: GameAction): GameState {
@@ -89,5 +93,7 @@ function applyAction(state: GameState, action: GameAction): GameState {
       return survivors.dismissSurvivor(state, action.index);
     case "MARK_DEBRIS":
       return survivors.setDebrisMarks(state, action.points, action.on);
+    case "OPEN_ZONE":
+      return openZone(state, action.zoneId);
   }
 }

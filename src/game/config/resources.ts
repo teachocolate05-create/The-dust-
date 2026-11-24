@@ -20,22 +20,25 @@ export const RESOURCES: ResourceDef[] = [
 
 export const RESOURCE_BY_ID = Object.fromEntries(RESOURCES.map((r) => [r.id, r])) as Record<ResourceId, ResourceDef>;
 
-/** 창고 시설이 없어도 쌓아 둘 수 있는 기본 저장량. 저장 시설을 지으면 늘어난다. */
+/**
+ * 창고 시설이 없어도 쌓아 둘 수 있는 기본 저장량.
+ * 출입 가능한 방에 저장 시설(사물함·선반·식량 보관함·물탱크 등)을 지을 때마다 최대치가 늘어난다.
+ */
 export const BASE_CAPACITY: Record<ResourceId, number> = {
-  food: 30,
-  water: 30,
+  food: 10,
+  water: 10,
   power: 0,
   fuel: 20,
   parts: 15,
-  materials: 60,
+  materials: 40,
 };
 
 /** 새 게임 시작 자원 */
 export const STARTING_RESOURCES: Record<ResourceId, number> = {
-  food: 18, // 24 → 18
-  water: 14, // 18 → 14
+  food: 5,
+  water: 5,
   power: 0,
   fuel: 12,
   parts: 10,
-  materials: 52, // 60 → 52
+  materials: 20,
 };

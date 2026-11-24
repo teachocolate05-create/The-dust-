@@ -64,7 +64,7 @@ function apply(state: GameState, id: EventId): { state: GameState; text: string 
   let seed = s.seed;
   let text = "";
   const lose = (k: ResourceId, rate: number): number => {
-    const n = Math.floor(s.resources[k] * rate);
+    const n = Math.min(s.resources[k], Math.max(1, Math.floor(s.resources[k] * rate)));
     s = { ...s, resources: { ...s.resources, [k]: s.resources[k] - n } };
     return n;
   };

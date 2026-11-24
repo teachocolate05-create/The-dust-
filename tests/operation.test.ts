@@ -28,13 +28,17 @@ export function withMachine(type: "filter" | "workbench", opts: { power?: boolea
 
 describe("저장 용량", () => {
   it("기본 용량 + 창고 시설 용량", () => {
-    expect(capacity(createInitialState(7)).materials).toBe(60 + 20);
-    expect(capacity(createInitialState(7)).food).toBe(30);
+    // 시작: 옛 창고는 잔해에 막혀 있으므로 기본값만
+    expect(capacity(createInitialState(7)).materials).toBe(40);
+    expect(capacity(createInitialState(7)).food).toBe(10);
+    expect(capacity(createInitialState(7)).water).toBe(10);
+    // 길이 뚫리면 옛 창고의 보관 선반(+15) 포함
+    expect(capacity(opened(7)).materials).toBe(55);
   });
   it("넘치는 획득량은 버려진다", () => {
     const s0 = createInitialState(7);
-    const s: GameState = { ...s0, resources: { ...s0.resources, materials: 80 } };
-    expect(gameReducer(s, { type: "DO_ACTION", actionId: "scavenge" }).resources.materials).toBe(80);
+    const s: GameState = { ...s0, resources: { ...s0.resources, materials: 40 } };
+    expect(gameReducer(s, { type: "DO_ACTION", actionId: "scavenge" }).resources.materials).toBe(40);
   });
 });
 

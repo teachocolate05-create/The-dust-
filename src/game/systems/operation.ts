@@ -13,11 +13,15 @@ import { canModifyBase } from "./phase";
 
 // ───────────── 저장 용량 ─────────────
 
+/** 최대 저장량 = 기본 + 출입 가능한 방에 있는 저장 시설의 합 */
 export function capacity(state: GameState): Record<ResourceId, number> {
   const cap = { ...BASE_CAPACITY };
-  for (const room of state.rooms)
+  const access = computeAccess(state);
+  for (const room of state.rooms) {
+    if (!access.roomAccess[room.id]) continue;
     for (const f of room.facilities)
       for (const [k, v] of Object.entries(FACILITY_BY_ID[f.type].storage) as [ResourceId, number][]) cap[k] += v;
+  }
   return cap;
 }
 
