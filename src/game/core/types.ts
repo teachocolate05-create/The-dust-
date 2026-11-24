@@ -1,0 +1,96 @@
+// 게임 전체에서 쓰는 기본 타입 정의.
+// UI 코드와 분리되어 있으며, 게임 규칙(systems)과 데이터(config)가 이 타입을 공유한다.
+
+export type ResourceId = "food" | "water" | "power" | "fuel" | "parts" | "materials";
+
+/** 비용/환급 등 자원 묶음. 필요한 자원만 적는다. */
+export type ResourceBundle = Partial<Record<ResourceId, number>>;
+
+/** 맵 타일 종류 */
+export type TileType =
+  | "rock" // 암반·외벽 (사용 불가)
+  | "floor" // 정리된 바닥 (방 생성 가능)
+  | "debris" // 잔해 (정리 전에는 사용 불가)
+  | "pillar" // 구조 기둥 (사용 불가)
+  | "platform" // 승강장 (통행 가능, 건설 불가)
+  | "track" // 선로 (사용 불가)
+  | "entrance" // 지상 출입구 계단
+  | "watersource"; // 급수원 (지하수 배관)
+
+export type RoomTypeId = "residence" | "storage" | "power" | "water" | "workshop";
+
+export type FacilityTypeId =
+  | "cot"
+  | "bunk"
+  | "locker"
+  | "shelf"
+  | "foodbox"
+  | "crate"
+  | "emergency_gen"
+  | "fuel_gen"
+  | "switchboard"
+  | "filter"
+  | "tank"
+  | "workbench"
+  | "toolrack";
+
+/** 시간 구간. 오전/오후/야간 + 정비 시간 */
+export type Phase = "morning" | "afternoon" | "night" | "maintenance";
+
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export interface Facility {
+  id: string;
+  type: FacilityTypeId;
+  /** 맵 기준 좌상단 타일 좌표 */
+  x: number;
+  y: number;
+  /** 90도 회전 여부 (가로·세로 크기 교환) */
+  rotated: boolean;
+  durability: number;
+}
+
+export interface Room {
+  id: string;
+  name: string;
+  type: RoomTypeId;
+  rect: Rect;
+  facilities: Facility[];
+}
+
+export interface LogEntry {
+  day: number;
+  phase: Phase;
+  text: string;
+  kind: "info" | "build" | "warn";
+}
+
+export interface GameState {
+  /** 저장 데이터 형식 버전 */
+  version: number;
+  day: number;
+  phase: Phase;
+  /** 남은 행동 횟수 (2단계에서 사용) */
+  actionsLeft: number;
+  resources: Record<ResourceId, number>;
+  /** 맵 타일. 잔해 정리 등으로 바뀔 수 있으므로 상태에 보관 */
+  map: TileType[][];
+  rooms: Room[];
+  nextId: number;
+  log: LogEntry[];
+}
+
+/** 규칙 검사 결과 */
+export type Check =
+  | { ok: true; cost: ResourceBundle; refund: ResourceBundle }
+  | { ok: false; reason: string };

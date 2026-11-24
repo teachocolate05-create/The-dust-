@@ -1,0 +1,74 @@
+import { FACILITY_BY_ID } from "../config/facilities";
+import { parseLayout, STATION_LAYOUT } from "../config/map";
+import { STARTING_RESOURCES } from "../config/resources";
+import { RULES } from "../config/rules";
+import type { FacilityTypeId, GameState, Rect, Room, RoomTypeId } from "../core/types";
+
+export const SAVE_VERSION = 1;
+
+// 시작 시 역사에 남아 있는 공간 (기획서 2-2, 2-3)
+interface PresetRoom {
+  name: string;
+  type: RoomTypeId;
+  rect: Rect;
+  facilities: { type: FacilityTypeId; x: number; y: number; rotated?: boolean; durability?: number }[];
+}
+
+const PRESET_ROOMS: PresetRoom[] = [
+  {
+    name: "임시 거주 구역",
+    type: "residence",
+    rect: { x: 1, y: 3, w: 4, h: 3 },
+    facilities: [{ type: "cot", x: 1, y: 3 }],
+  },
+  {
+    name: "비상 발전실",
+    type: "power",
+    rect: { x: 3, y: 9, w: 4, h: 3 },
+    facilities: [{ type: "emergency_gen", x: 4, y: 10, durability: 38 }],
+  },
+  {
+    name: "남은 창고",
+    type: "storage",
+    rect: { x: 18, y: 4, w: 3, h: 2 },
+    facilities: [{ type: "shelf", x: 18, y: 4, durability: 70 }],
+  },
+];
+
+export function createInitialState(): GameState {
+  let nextId = 1;
+  const rooms: Room[] = PRESET_ROOMS.map((p) => ({
+    id: `room${nextId++}`,
+    name: p.name,
+    type: p.type,
+    rect: p.rect,
+    facilities: p.facilities.map((f) => ({
+      id: `fac${nextId++}`,
+      type: f.type,
+      x: f.x,
+      y: f.y,
+      rotated: f.rotated ?? false,
+      durability: f.durability ?? FACILITY_BY_ID[f.type].maxDurability,
+    })),
+  }));
+
+  return {
+    version: SAVE_VERSION,
+    day: 1,
+    // 1단계에서는 시간 진행이 없으므로 첫날 정비 시간(거점 준비)에서 시작한다.
+    phase: "maintenance",
+    actionsLeft: RULES.actionsPerPhase,
+    resources: { ...STARTING_RESOURCES },
+    map: parseLayout(STATION_LAYOUT),
+    rooms,
+    nextId,
+    log: [
+      {
+        day: 1,
+        phase: "maintenance",
+        kind: "info",
+        text: "폐쇄된 환승역에 도착했다. 비상 발전기는 겨우 돌아가고, 남은 물자는 많지 않다.",
+      },
+    ],
+  };
+}
