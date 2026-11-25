@@ -13,7 +13,8 @@ export type ActionId =
   | "craft"
   | "clearDebris"
   | "surfaceScout"
-  | "encourage";
+  | "encourage"
+  | "rest";
 
 export type ActionCategory = "탐사" | "생존" | "구조" | "작업";
 
@@ -84,6 +85,14 @@ export const ACTIONS: ActionDef[] = [
     category: "탐사",
     desc: "지상으로 올라가 멀리 있는 지역을 살핀다. 새 지역을 찾으면 원정을 보낼 수 있다.",
     outside: true,
+    implemented: true,
+  },
+  {
+    id: "rest",
+    name: "휴식",
+    category: "생존",
+    desc: "잠시 쉬며 숨을 고른다. 피로 -10, 60% 확률로 건강 +1~3.",
+    outside: false,
     implemented: true,
   },
   {

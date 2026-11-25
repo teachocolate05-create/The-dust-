@@ -10,7 +10,7 @@ import type { ActionResult, GameState, LogEntry, Point, Rect, ResourceBundle, Re
 import { computeAccess } from "./access";
 import { addCapped, hasWorking } from "./operation";
 import { isDayPhase, PHASE_NAMES } from "./phase";
-import { doRescue, doSearch, rescueBlockReason, searchBlockReason } from "./survivors";
+import { doPlayerRest, doRescue, doSearch, rescueBlockReason, searchBlockReason } from "./survivors";
 import { SURVIVOR_RULES } from "../config/survivors";
 import { THREAT_RULES } from "../config/events";
 import { LIFE_RULES } from "../config/life";
@@ -76,7 +76,7 @@ export function canDoAction(state: GameState, id: ActionId, target?: ActionTarge
   if (state.actionsLeft <= 0) return no(`${PHASE_NAMES[state.phase]} 행동을 모두 사용했습니다. 구간을 종료하세요.`);
 
   const player = state.survivors.find((x) => x.isPlayer);
-  if (player && player.fatigue >= 100) return no("너무 지쳐 더 움직일 수 없습니다. 구간을 넘겨 쉬세요 (밤잠으로 회복).");
+  if (player && player.fatigue >= 100 && id !== "rest") return no("너무 지쳐 더 움직일 수 없습니다. '휴식' 행동을 하거나 밤잠으로 회복하세요.");
 
   const rate = yieldRate(state, id);
   const nightNote = rate < 1 ? ` (야간 효율 ${Math.round(rate * 100)}%)` : "";
@@ -124,6 +124,7 @@ export function canDoAction(state: GameState, id: ActionId, target?: ActionTarge
     return { ok: true, cost: {}, preview: `${p.survivor.name}을(를) 데려온다` };
   }
 
+  if (id === "rest") return { ok: true, cost: {}, preview: `피로 -10 · 60% 확률로 건강 +1~3` };
   if (id === "surfaceScout") return { ok: true, cost: {}, preview: `새 지역 발견 확률 ${Math.round(WORLD_RULES.scoutChance * 100)}%${nightNote}` };
   if (id === "encourage") {
     const why = canEncourage(state);
@@ -189,6 +190,11 @@ export function doAction(state: GameState, id: ActionId, target?: ActionTarget):
     s = found.state;
     seed = s.seed;
     text += found.text;
+  } else if (id === "rest") {
+    const r = doPlayerRest({ ...s, seed });
+    s = r.state;
+    seed = s.seed;
+    text = r.text;
   } else if (id === "surfaceScout" || id === "encourage") {
     const r = id === "surfaceScout" ? doSurfaceScout({ ...s, seed }) : doEncourage({ ...s, seed });
     s = r.state;
@@ -268,7 +274,7 @@ export function doAction(state: GameState, id: ActionId, target?: ActionTarget):
   s = {
     ...s,
     lastAction: result,
-    survivors: s.survivors.map((x) => (x.isPlayer ? { ...x, fatigue: Math.min(100, x.fatigue + SURVIVOR_RULES.actionFatigue) } : x)),
+    survivors: s.survivors.map((x) => (x.isPlayer && id !== "rest" ? { ...x, fatigue: Math.min(100, x.fatigue + SURVIVOR_RULES.actionFatigue) } : x)),
   };
   const gainText = Object.keys(gained).length ? ` (+${bundleText(gained)})` : "";
   const spentText = Object.keys(check.cost).length ? ` (-${bundleText(check.cost)})` : "";

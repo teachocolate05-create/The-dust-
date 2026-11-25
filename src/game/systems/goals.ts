@@ -24,7 +24,7 @@ export function achievedNow(state: GameState): Set<string> {
   if ((f.production.food ?? 0) > 0 && (f.production.food ?? 0) >= (f.consumption.food ?? 0)) out.add("selfFood");
   if (sim.powerNets.reduce((n, p) => n + p.supply, 0) >= 30) out.add("power");
   if (ZONES.every((z) => state.zones.includes(z.id))) out.add("allZones");
-  if (state.day >= 20) out.add("days20");
+  if (state.day >= 30) out.add("days30");
   return out;
 }
 

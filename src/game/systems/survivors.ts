@@ -352,6 +352,22 @@ export function processWork(state: GameState): GameState {
   return { ...s, seed };
 }
 
+/** 플레이어 '휴식' 행동: 피로 감소, 일정 확률로 건강 소량 회복 (생존자 휴식과 같은 확률) */
+export function doPlayerRest(state: GameState): { state: GameState; text: string } {
+  let seed = state.seed;
+  let roll: number;
+  [roll, seed] = nextRandom(seed);
+  let gain = 0;
+  if (roll < R.restHealChance) [gain, seed] = randomInt(seed, 1, R.restHealthGain);
+  const survivors = state.survivors.map((x) =>
+    x.isPlayer ? { ...x, fatigue: Math.max(0, x.fatigue - R.playerRestFatigue), health: Math.min(100, x.health + gain) } : x,
+  );
+  return {
+    state: { ...state, survivors, seed },
+    text: `잠시 눈을 붙였다. 피로 -${R.playerRestFatigue}${gain ? `, 건강 +${gain}` : ""}.`,
+  };
+}
+
 /** 능력치를 올리는 데 필요한 작업 구간 수: 기본 + 현재 능력치 × 배수 */
 export function xpNeeded(level: number): number {
   return R.xpBase + R.xpPerLevel * level;
@@ -383,12 +399,11 @@ export function processNeeds(state: GameState, shortage: ResourceBundle): GameSt
   const out: Survivor[] = [];
   let s = state;
   let seed = state.seed;
-  // 플레이어는 이번 구간에 행동을 하나도 안 했으면 쉰 것으로 본다
-  const playerRested = state.actionsLeft >= RULES.actionsPerPhase;
   for (const sv of state.survivors) {
     let { health, fatigue } = sv;
     const resting = !sv.isPlayer && (sv.job === "rest" || sv.fatigue >= 100);
-    const restedForHealth = sv.isPlayer ? playerRested : resting;
+    // 플레이어는 '휴식' 행동으로 따로 회복한다
+    const restedForHealth = !sv.isPlayer && resting;
     if (!sv.isPlayer) fatigue = resting ? fatigue - R.restRecovery - restBonus : fatigue + R.workFatigue + workFatigueExtra(sv);
     if (sv.fatigue >= 100) health -= R.exhaustedHealthLoss;
     if (starving) health -= R.starvationHealthLoss * starving;

@@ -212,7 +212,10 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
               )}
               <Skills sv={sv} />
               {sv.isPlayer ? (
-                <p className="muted small-text">행동 1회마다 피로 +{SURVIVOR_RULES.actionFatigue}. 피로 100이면 행동할 수 없습니다.</p>
+                <p className="muted small-text">
+                  행동 1회마다 피로 +{SURVIVOR_RULES.actionFatigue}. 피로 100이면 '휴식' 말고는 행동할 수 없습니다. 행동 탭의 '휴식'으로 피로를 풀고 건강을 조금
+                  회복할 수 있습니다.
+                </p>
               ) : (
                 <>
                   <label className="job-row">

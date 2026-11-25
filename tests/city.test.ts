@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTestState } from "@/game/state/initialState";
 import { gameReducer } from "@/game/state/reducer";
+import { canDoAction } from "@/game/systems/actions";
 import { migrateSave, validateSave } from "@/game/state/save";
 import { canOpenZone } from "@/game/systems/zones";
 import { simulatePeriod } from "@/game/systems/operation";
@@ -95,15 +96,29 @@ describe("숙련", () => {
 });
 
 describe("건강 회복 (휴식)", () => {
-  it("부상이 없어도 쉬면 일정 확률로 건강이 조금 오른다 (플레이어는 행동을 안 한 구간)", () => {
+  it("플레이어 '휴식' 행동: 피로 -10, 60% 확률로 건강 +1~3 (행동 1 소비, 피로 증가 없음)", () => {
     let up = 0;
     for (let seed = 1; seed <= 100; seed++) {
       const s0 = createTestState(seed);
-      const s = { ...s0, survivors: [{ ...s0.survivors[0], health: 70 }], resources: { ...s0.resources, food: 9, water: 9 } };
-      if (gameReducer(s, { type: "END_PHASE" }).survivors[0].health > 70) up++;
+      const s = { ...s0, survivors: [{ ...s0.survivors[0], health: 70, fatigue: 50 }] };
+      const r = gameReducer(s, { type: "DO_ACTION", actionId: "rest" });
+      expect(r.actionsLeft).toBe(2);
+      expect(r.survivors[0].fatigue).toBe(40);
+      if (r.survivors[0].health > 70) up++;
     }
     expect(up).toBeGreaterThan(40);
     expect(up).toBeLessThan(80);
+  });
+  it("행동을 안 하고 구간을 넘겨도 플레이어 건강은 저절로 오르지 않는다", () => {
+    const s0 = createTestState(3);
+    const s = { ...s0, survivors: [{ ...s0.survivors[0], health: 70 }], resources: { ...s0.resources, food: 9, water: 9 } };
+    expect(gameReducer(s, { type: "END_PHASE" }).survivors[0].health).toBe(70);
+  });
+  it("너무 지쳐도 휴식은 할 수 있다", () => {
+    const s0 = createTestState(3);
+    const tired = { ...s0, survivors: [{ ...s0.survivors[0], fatigue: 100 }] };
+    expect(canDoAction(tired, "forage").ok).toBe(false);
+    expect(canDoAction(tired, "rest").ok).toBe(true);
   });
 });
 
@@ -116,8 +131,15 @@ describe("장기 목표", () => {
     expect(s.goals).toEqual(expect.arrayContaining(["companion", "zone"]));
     expect(s.events.list.some((e) => e.id === "goal-zone")).toBe(true);
   });
+  it("30일 전에는 완성되지 않는다", () => {
+    let s = toMaintenance({ ...opened(), day: 25, zones: ["east", "southeast", "lower_west", "lower_east"] });
+    s = { ...s, survivors: [...s.survivors, ...Array.from({ length: 7 }, (_, i) => mk(`p${i}`, { job: "rest" }))], goals: ["selfFood", "power"] };
+    s = gameReducer(s, { type: "SET_CRAFT_TARGET", target: "fuel" });
+    expect(s.goals).toContain("allZones");
+    expect(s.cityDay).toBeNull();
+  });
   it("최종 조건을 모두 이루면 독립 생존 거점 완성", () => {
-    let s = toMaintenance({ ...opened(), day: 21, zones: ["east", "southeast", "lower_west", "lower_east"] });
+    let s = toMaintenance({ ...opened(), day: 31, zones: ["east", "southeast", "lower_west", "lower_east"] });
     s = { ...s, survivors: [...s.survivors, ...Array.from({ length: 7 }, (_, i) => mk(`p${i}`, { job: "rest" }))] };
     // 식량 자급: 수확 직전 재배상 여러 개, 전력 30: 발전기 대신 판정용 고효율 발전기 2대
     s = {
@@ -126,7 +148,7 @@ describe("장기 목표", () => {
       rooms: s.rooms,
     };
     s = gameReducer({ ...s, goals: [...s.goals] }, { type: "SET_CRAFT_TARGET", target: "fuel" });
-    expect(s.cityDay).toBe(21);
+    expect(s.cityDay).toBe(31);
     expect(s.goals).toContain("city");
     expect(s.events.list.some((e) => e.id === "goal-city")).toBe(true);
   });

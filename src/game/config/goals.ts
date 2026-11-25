@@ -20,12 +20,12 @@ export const GOALS: GoalDef[] = [
   { id: "population", name: "작은 도시", desc: "거점 인원 8명.", final: true },
   { id: "selfFood", name: "자급자족", desc: "한 구간의 식량 생산이 소비 이상이다.", final: true },
   { id: "power", name: "안정된 전력", desc: "전력망 발전량 합계 30 이상.", final: true },
-  { id: "allZones", name: "역 전체 복구", desc: "모든 구역을 개방한다.", final: true },
-  { id: "days20", name: "20일 생존", desc: "20일차를 맞는다.", final: true },
+  { id: "allZones", name: "모든 구역 잠금 해제", desc: "봉쇄된 셔터를 모두 열어 역의 모든 구역을 개방한다.", final: true },
+  { id: "days30", name: "30일 생존", desc: "30일차를 맞는다.", final: true },
 ];
 
 export const CITY_GOAL = {
   id: "city",
   name: "독립 생존 거점",
-  desc: "'작은 도시'·'자급자족'·'안정된 전력'·'역 전체 복구'·'20일 생존'을 모두 이룬다. 폐쇄된 환승역이 하나의 독립된 생존 거점이 된다.",
+  desc: "'작은 도시'·'자급자족'·'안정된 전력'·'모든 구역 잠금 해제'·'30일 생존'을 모두 이룬다. 폐쇄된 환승역이 하나의 독립된 생존 거점이 된다.",
 };
