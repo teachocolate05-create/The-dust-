@@ -41,6 +41,10 @@ export interface FacilityDef {
   kitchen?: boolean;
   /** 방어력 (경비실, 업데이트 4) */
   defense?: number;
+  /** 축전지 용량 (업데이트 5) */
+  battery?: number;
+  /** 양수 펌프: 연결된 수도망의 원수 공급량 + (업데이트 5) */
+  pumpBoost?: number;
 
   /** 지도에 쓰는 짧은 표시 */
   glyph: string;
@@ -112,6 +116,25 @@ export const FACILITIES: FacilityDef[] = [
   { ...base, id: "stove", name: "조리대", w: 2, h: 1, room: "common", cost: { materials: 10, parts: 4 }, operates: true, decay: 1, power: -1, kitchen: true, glyph: "조리", desc: "따뜻한 식사로 식량을 아껴 먹습니다 (소비 25% 절약), 모두 사기 +1/구간." },
   { ...base, id: "refinery", name: "연료 정제기", w: 2, h: 2, room: "workshop", cost: { materials: 20, parts: 8 }, advanced: true, operates: true, decay: 1, power: -2, consumes: { materials: 3 }, produces: { fuel: 2 }, glyph: "정제", desc: "고급 설비. 구간마다 자재 3으로 연료 2를 자동 생산합니다." },
   { ...base, id: "lathe", name: "부품 가공기", w: 2, h: 2, room: "workshop", cost: { materials: 22, parts: 6 }, advanced: true, operates: true, decay: 1, power: -3, consumes: { materials: 4 }, produces: { parts: 1 }, glyph: "가공", desc: "고급 설비. 구간마다 자재 4로 부품 1을 자동 생산합니다." },
+  // ── 업데이트 5: 대규모 생존 도시 ──
+  {
+    ...base,
+    id: "substation",
+    name: "변전 설비",
+    w: 3,
+    h: 2,
+    room: "power",
+    cost: {},
+    buildable: false,
+    fixed: true,
+    operates: true,
+    decay: 1,
+    power: 25,
+    glyph: "변전",
+    desc: "지하 2층에 남은 옛 변전 설비. 연료 없이 전력 25를 만들지만 처음엔 완전히 고장 나 있다 (정비 수리 필요).",
+  },
+  { ...base, id: "battery", name: "축전지", w: 2, h: 1, room: "power", cost: { materials: 15, parts: 10 }, advanced: true, battery: 30, glyph: "축전", desc: "고급 설비. 남는 전력을 최대 30까지 저장했다가 모자랄 때 내보냅니다. 전력선에 연결해야 합니다." },
+  { ...base, id: "pump", name: "양수 펌프", w: 1, h: 1, room: "water", cost: { materials: 12, parts: 8 }, advanced: true, operates: true, decay: 1, power: -2, pumpBoost: 6, glyph: "펌프", desc: "고급 설비. 연결된 수도망의 급수원 원수 공급량 +6. 전력선과 수도관이 필요합니다." },
   // ── 업데이트 4: 외부 세계 ──
   { ...base, id: "barricade", name: "바리케이드", w: 2, h: 1, room: "guard", cost: { materials: 8 }, defense: 8, glyph: "방벽", desc: "습격 방어력 +8." },
   { ...base, id: "watch_post", name: "감시 초소", w: 1, h: 1, room: "guard", cost: { materials: 5, parts: 2 }, defense: 5, glyph: "감시", desc: "습격 방어력 +5." },

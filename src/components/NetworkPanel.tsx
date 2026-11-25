@@ -103,6 +103,8 @@ export default function NetworkPanel({ state, sim, setMode, setSelection }: Prop
               </div>
               <span className="small-text muted">
                 발전 {n.supply} · 필요 {n.demand} · 공급 {n.used}
+                {n.battery.capacity > 0 &&
+                  ` · 축전지 ${n.battery.charge}/${n.battery.capacity} (${n.battery.delta >= 0 ? "+" : ""}${n.battery.delta})`}
               </span>
             </li>
           ))}
@@ -147,9 +149,14 @@ export default function NetworkPanel({ state, sim, setMode, setSelection }: Prop
           <span className="badge badge-todo">전력선</span>
         </li>
         <li>
-          <span>재배상·자동 재배기·조리대·정제기·가공기</span>
+          <span>재배상·자동 재배기·조리대·정제기·가공기·축전지</span>
           <span className="grow" />
           <span className="badge badge-todo">전력선</span>
+        </li>
+        <li>
+          <span>양수 펌프</span>
+          <span className="grow" />
+          <span className="badge badge-todo">전력선 + 수도관(급수원)</span>
         </li>
         <li>
           <span>발전기</span>

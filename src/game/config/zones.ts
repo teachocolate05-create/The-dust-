@@ -43,6 +43,29 @@ export const ZONES: ZoneDef[] = [
     requires: "east",
     hint: "선로 옆 바닥은 방을 짓기 좋고, 끝에 급수원이 있다.",
   },
+  // ── 업데이트 5: 대규모 확장 (지하 2층) ──
+  {
+    id: "lower_west",
+    name: "지하 2층 서쪽",
+    desc: "승강장 아래 기계 층. 오래된 변전 설비가 잠들어 있다.",
+    rect: { x: 1, y: 17, w: 21, h: 11 },
+    gates: [{ x: 3, y: 16 }],
+    cost: { materials: 30, parts: 10 },
+    hint: "승강장 왼쪽 끝 선로 점검 통로로 내려간다. 옛 변전소를 고치면 연료 없이 큰 전력을 얻는다.",
+  },
+  {
+    id: "lower_east",
+    name: "지하 2층 동쪽",
+    desc: "넓은 옛 환승 홀과 지하 저수조. 대규모 거점을 세울 자리다.",
+    rect: { x: 23, y: 17, w: 22, h: 11 },
+    gates: [
+      { x: 22, y: 21 },
+      { x: 22, y: 22 },
+    ],
+    cost: { materials: 40, parts: 15 },
+    requires: "lower_west",
+    hint: "정리된 넓은 홀 두 곳과 급수원 두 곳이 있다.",
+  },
 ];
 
 export const ZONE_BY_ID = Object.fromEntries(ZONES.map((z) => [z.id, z])) as Record<string, ZoneDef>;

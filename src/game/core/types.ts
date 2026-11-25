@@ -50,7 +50,10 @@ export type FacilityTypeId =
   | "refinery"
   | "lathe"
   | "barricade"
-  | "watch_post";
+  | "watch_post"
+  | "substation"
+  | "battery"
+  | "pump";
 
 /** 시간 구간. 오전/오후/야간 + 정비 시간 */
 export type Phase = "morning" | "afternoon" | "night" | "maintenance";
@@ -80,6 +83,8 @@ export interface Facility {
   enabled: boolean;
   /** 작물 성장 단계 (재배 시설만, 업데이트 3) */
   growth?: number;
+  /** 축전지 충전량 (업데이트 5) */
+  charge?: number;
 }
 
 export interface Room {
@@ -140,6 +145,12 @@ export interface GameState {
   world: WorldState;
   /** 게임 오버 정보. null이면 진행 중 */
   gameOver: { day: number; phase: Phase; reason: string } | null;
+  /** 달성한 장기 목표 (업데이트 5) */
+  goals: string[];
+  /** 누적 기록 (목표 판정용) */
+  stats: { harvests: number; expeditions: number; raidsRepelled: number };
+  /** 독립 생존 거점을 완성한 날 */
+  cityDay: number | null;
 }
 
 export interface WorldState {
@@ -195,6 +206,8 @@ export interface Survivor {
   conditions: Condition[];
   /** 사기 0~100 (업데이트 2) */
   morale: number;
+  /** 능력치 숙련 경험치 (업데이트 5) */
+  xp?: Partial<Record<"tech" | "medic" | "gather" | "farm" | "manage", number>>;
 }
 
 export type TraitId = "hardworking" | "lazy" | "sturdy" | "frail" | "optimist" | "pessimist" | "social" | "grumpy" | "handy" | "scout";

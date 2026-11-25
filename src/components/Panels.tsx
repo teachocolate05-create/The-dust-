@@ -10,6 +10,7 @@ import { area } from "@/game/core/geometry";
 import { bundleText, isEmptyBundle } from "@/game/core/resources";
 import * as operation from "@/game/systems/operation";
 import { ZONES, ZONE_BY_ID } from "@/game/config/zones";
+import { CITY_GOAL, GOALS } from "@/game/config/goals";
 import { canOpenZone, gateZoneAt, isZoneOpen, lockedZoneAt } from "@/game/systems/zones";
 import type { GameState, ResourceBundle, ResourceId, Room, RoomTypeId } from "@/game/core/types";
 import type { AccessInfo } from "@/game/systems/access";
@@ -160,6 +161,27 @@ function Overview({ state, access, setSelection, goBuild }: PanelProps) {
       <button className="btn primary" onClick={goBuild}>
         건설 메뉴 열기
       </button>
+
+      <h4 className="section-title">
+        장기 목표 ({GOALS.filter((g) => state.goals.includes(g.id)).length}/{GOALS.length})
+      </h4>
+      {state.cityDay !== null && <div className="alert ok">{state.cityDay}일차에 '{CITY_GOAL.name}'을(를) 완성했습니다. 계속 거점을 키울 수 있습니다.</div>}
+      <ul className="goal-list">
+        {GOALS.map((g) => (
+          <li key={g.id} className={state.goals.includes(g.id) ? "done" : ""}>
+            <span className="goal-check" aria-hidden>
+              {state.goals.includes(g.id) ? "✓" : ""}
+            </span>
+            <span className="grow">
+              <b>{g.name}</b> <span className="muted small-text">{g.desc}</span>
+            </span>
+            {g.final && <span className="badge badge-next">최종</span>}
+          </li>
+        ))}
+      </ul>
+      <p className="muted small-text">
+        <b>{CITY_GOAL.name}</b>: {CITY_GOAL.desc}
+      </p>
     </div>
   );
 }
@@ -317,6 +339,8 @@ function FacilityInfo({ state, room, facilityId, setSelection, setMode, run, sim
   if (def.beds) effects.push({ label: "침상", value: `${def.beds}` });
   if (def.crop) effects.push({ label: "수확", value: `${def.crop.cycle}구간마다 식량 ${def.crop.yield}`, note: `성장 ${fac.growth ?? 0}/${def.crop.cycle}` });
   if (def.kitchen) effects.push({ label: "조리", value: "식량 소비 25% 절약, 사기 +1/구간" });
+  if (def.battery) effects.push({ label: "충전량", value: `${fac.charge ?? 0}/${def.battery}`, note: rep?.powerNet ? `전력망 ${rep.powerNet}` : "전력선 미연결" });
+  if (def.pumpBoost) effects.push({ label: "원수 공급", value: `수도망 +${def.pumpBoost}` });
 
   return (
     <div className="panel-body">

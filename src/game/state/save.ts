@@ -42,6 +42,7 @@ export function validateSave(data: any): data is GameState {
       if (!isInt(f.x) || !isInt(f.y) || typeof f.rotated !== "boolean" || typeof f.durability !== "number") return false;
       if (typeof f.enabled !== "boolean") return false;
       if (f.growth !== undefined && !isInt(f.growth)) return false;
+      if (f.charge !== undefined && typeof f.charge !== "number") return false;
     }
   }
   if (!Array.isArray(data.log)) return false;
@@ -61,6 +62,9 @@ export function validateSave(data: any): data is GameState {
   if (!data.relations || typeof data.relations !== "object" || !Object.values(data.relations).every((v) => typeof v === "number")) return false;
   if (!["parts", "fuel", "recycle"].includes(data.craftTarget)) return false;
   if (!isInt(data.feastDay)) return false;
+  if (!Array.isArray(data.goals) || !data.goals.every((g: any) => typeof g === "string")) return false;
+  if (!data.stats || !isInt(data.stats.harvests) || !isInt(data.stats.expeditions) || !isInt(data.stats.raidsRepelled)) return false;
+  if (data.cityDay !== null && !isInt(data.cityDay)) return false;
   const w = data.world;
   if (!w || typeof w.regions !== "object" || typeof w.factions !== "object" || !Array.isArray(w.expeditions)) return false;
   if (!Object.values(w.regions).every((r: any) => typeof r?.discovered === "boolean" && isInt(r?.visits))) return false;
@@ -158,6 +162,45 @@ export function migrateSave(data: any): any {
   if (data && data.version === 8) data = { ...data, version: 9, craftTarget: "parts" };
   // 업데이트 3 → 업데이트 4: 외부 세계, 특별 배급
   if (data && data.version === 9) data = { ...data, version: 10, feastDay: 0, world: createWorld() };
+  // 업데이트 4 → 업데이트 5: 지하 2층(맵 아래로 확장), 옛 변전소, 장기 목표
+  if (data && data.version === 10 && Array.isArray(data.map) && Array.isArray(data.rooms)) {
+    const fresh = parseLayout(STATION_LAYOUT);
+    const oldH = data.map.length;
+    const map = fresh.map((row, y) =>
+      row.map((t, x) => {
+        // 지하 2층으로 내려가는 점검 통로·셔터는 새 맵을 따르고, 나머지 기존 칸은 그대로
+        const passage = x === 3 && y >= 14 && y <= 16;
+        return y < oldH && !passage && data.map[y]?.[x] ? data.map[y][x] : t;
+      }),
+    );
+    let nextId = data.nextId;
+    const names = new Set(data.rooms.map((r: any) => r.name));
+    const extra = ZONE_PRESET_ROOMS.filter((p) => !names.has(p.name)).map((p) => ({
+      id: `room${nextId++}`,
+      name: p.name,
+      type: p.type,
+      rect: p.rect,
+      facilities: p.facilities.map((f) => ({
+        id: `fac${nextId++}`,
+        type: f.type,
+        x: f.x,
+        y: f.y,
+        rotated: f.rotated ?? false,
+        durability: f.durability ?? FACILITY_BY_ID[f.type].maxDurability,
+        enabled: true,
+      })),
+    }));
+    data = {
+      ...data,
+      version: 11,
+      map,
+      rooms: [...data.rooms, ...extra],
+      nextId,
+      goals: [],
+      stats: { harvests: 0, expeditions: 0, raidsRepelled: 0 },
+      cityDay: null,
+    };
+  }
   return data;
 }
 

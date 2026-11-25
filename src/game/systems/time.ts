@@ -159,6 +159,25 @@ export function endPhase(state: GameState): GameState {
   s = processNeeds(s, f.shortage);
   s = processLifePeriod(s, Object.keys(f.shortage).length > 0);
 
+  // 2-2) 축전지 충전·방전 (망별 변화를 축전지들에 나눠 담는다)
+  const remain = new Map(f.sim.powerNets.map((n) => [n.id, n.battery.delta]));
+  s = {
+    ...s,
+    rooms: s.rooms.map((room) => ({
+      ...room,
+      facilities: room.facilities.map((fac) => {
+        const cap = FACILITY_BY_ID[fac.type].battery;
+        const rep = f.sim.byId[fac.id];
+        if (!cap || !rep?.powerNet || !remain.get(rep.powerNet)) return fac;
+        const d = remain.get(rep.powerNet)!;
+        const cur = fac.charge ?? 0;
+        const next = Math.max(0, Math.min(cap, cur + d));
+        remain.set(rep.powerNet, d - (next - cur));
+        return { ...fac, charge: next };
+      }),
+    })),
+  };
+
   // 3) 내구도 감소와 고장
   let seed = s.seed;
   const breakdowns: string[] = [];
@@ -195,6 +214,7 @@ export function endPhase(state: GameState): GameState {
   };
   for (const b of breakdowns) s = addLog(s, b, "warn");
   for (const h of harvests) s = addLog(s, h, "build");
+  if (harvests.length) s = { ...s, stats: { ...s.stats, harvests: s.stats.harvests + harvests.length } };
 
   // 사건
   s = rollEvents(s);

@@ -6,6 +6,7 @@ import * as time from "../systems/time";
 import * as operation from "../systems/operation";
 import * as network from "../systems/network";
 import { checkGameOver } from "../systems/events";
+import { updateGoals } from "../systems/goals";
 import { openZone } from "../systems/zones";
 import * as world from "../systems/world";
 import type { FactionId, RegionId } from "../config/world";
@@ -55,7 +56,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   // 저장 시설을 철거·용도 변경해 용량이 줄면 넘치는 자원은 버려진다.
   // (길이 막혀 창고에 못 가는 경우에는 버리지 않고, 새로 얻는 양만 막힌다)
   const shrink = action.type === "REMOVE_FACILITY" || action.type === "DELETE_ROOM" || action.type === "CHANGE_ROOM_TYPE";
-  return checkGameOver(shrink ? operation.enforceCapacity(next) : next);
+  const checked = checkGameOver(shrink ? operation.enforceCapacity(next) : next);
+  if (action.type === "NEW_GAME" || action.type === "LOAD") return checked;
+  // 업데이트 5: 장기 목표 판정
+  return updateGoals(checked, checked.events.serial !== state.events.serial);
 }
 
 function applyAction(state: GameState, action: GameAction): GameState {

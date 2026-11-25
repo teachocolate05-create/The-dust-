@@ -201,6 +201,7 @@ export function processExpeditions(state: GameState): { state: GameState; events
       (found.length ? ` 새 지역 발견: ${found.join(", ")}.` : "") +
       contact;
     s = log(s, `[원정] ${text}`, "event");
+    s = { ...s, stats: { ...s.stats, expeditions: s.stats.expeditions + 1 } };
     events.push({ id: "expedition", title: "원정대 귀환", text, tone: hurtNames.length ? "bad" : "good" });
   }
   s = { ...s, seed, world: { ...s.world, expeditions: staying } };
@@ -323,6 +324,7 @@ export function processRaid(state: GameState): { state: GameState; events: GameE
   if (def.total >= str) {
     s = setFaction(s, "raiders", (f) => ({ ...f, contacted: true, relation: Math.max(-100, f.relation - 5) }));
     s = { ...s, survivors: s.survivors.map((x) => (x.isPlayer ? x : { ...x, morale: Math.min(100, x.morale + 5) })) };
+    s = { ...s, stats: { ...s.stats, raidsRepelled: s.stats.raidsRepelled + 1 } };
     text = `밤사이 ${name}이(가) 입구로 몰려왔지만 막아 냈다 (방어 ${def.total} ≥ 공격 ${str}). 모두 사기 +5.`;
     tone = "good";
   } else {

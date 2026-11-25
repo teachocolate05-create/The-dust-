@@ -1682,3 +1682,54 @@ button.trait.on {
   gap: 4px;
   white-space: normal;
 }
+
+/* ───────── 업데이트 5: 장기 목표 ───────── */
+.goal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.goal-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12.5px;
+}
+.goal-list li.done {
+  border-color: #2f5a2f;
+}
+.goal-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1.5px solid var(--line-2);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: var(--ok);
+  flex-shrink: 0;
+}
+.goal-list li.done .goal-check {
+  border-color: var(--ok);
+}
+.skill .xp {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+.city-chip {
+  font-size: 12px;
+  font-weight: 800;
+  background: var(--accent);
+  color: #1b1408;
+  border-radius: 6px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}

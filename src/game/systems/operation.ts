@@ -127,6 +127,8 @@ export interface PowerNetSummary {
   demand: number;
   used: number;
   tiles: number;
+  /** 축전지 (업데이트 5): 용량, 현재 충전량, 이번 구간 변화 (+충전 / -방전) */
+  battery: { capacity: number; charge: number; delta: number };
 }
 
 export interface WaterNetSummary {
@@ -198,7 +200,24 @@ export function simulatePeriod(state: GameState): PeriodSim {
     r.waterNet = wNets.facilityNet[r.facilityId];
   }
   const tileCount = (info: typeof pNets, id: number) => [...info.netOf.values()].filter((v) => v === id).length;
-  const powerNets: PowerNetSummary[] = pNets.ids.map((id) => ({ id, supply: 0, demand: 0, used: 0, tiles: tileCount(pNets, id) }));
+  const powerNets: PowerNetSummary[] = pNets.ids.map((id) => ({
+    id,
+    supply: 0,
+    demand: 0,
+    used: 0,
+    tiles: tileCount(pNets, id),
+    battery: { capacity: 0, charge: 0, delta: 0 },
+  }));
+  // 축전지: 출입 가능하고 고장 나지 않았으며 전력선에 연결된 것만
+  for (const r of reports) {
+    const cap = FACILITY_BY_ID[r.type].battery;
+    if (!cap || r.status === "isolated") continue;
+    const fac = all.find((x) => x.f.id === r.facilityId)!.f;
+    const net = powerNets.find((n) => n.id === r.powerNet);
+    if (!net || fac.durability <= 0) continue;
+    net.battery.capacity += cap;
+    net.battery.charge += fac.charge ?? 0;
+  }
   const waterNets: WaterNetSummary[] = wNets.ids.map((id) => ({
     id,
     sources: wNets.sources[id] ?? 0,
@@ -230,13 +249,17 @@ export function simulatePeriod(state: GameState): PeriodSim {
   // 3) 소비 시설: 수도관 → 전력선 → 전력량 → 원수량 순서로 확인
   let used = 0;
   let demand = 0;
-  for (const r of candidates.filter((c) => FACILITY_BY_ID[c.type].power <= 0)) {
+  // 양수 펌프를 먼저 처리해야 같은 수도망의 정수 시설이 늘어난 원수를 쓸 수 있다
+  const consumers = candidates
+    .filter((c) => FACILITY_BY_ID[c.type].power <= 0)
+    .sort((a, b) => (FACILITY_BY_ID[b.type].pumpBoost ? 1 : 0) - (FACILITY_BY_ID[a.type].pumpBoost ? 1 : 0));
+  for (const r of consumers) {
     const def = FACILITY_BY_ID[r.type];
     const need = -def.power;
     const rawNeed = Math.floor((def.produces.water ?? 0) * r.efficiency);
     demand += need;
     const water = wn(r.waterNet);
-    if (def.produces.water && (!water || water.sources === 0)) {
+    if ((def.produces.water || def.pumpBoost) && (!water || water.sources === 0)) {
       r.status = "noWaterLine";
       continue;
     }
@@ -247,7 +270,8 @@ export function simulatePeriod(state: GameState): PeriodSim {
         continue;
       }
       net.demand += need;
-      if (net.supply - net.used < need) {
+      // 발전량이 모자라면 축전지 충전량까지 끌어 쓴다
+      if (net.supply + net.battery.charge - net.used < need) {
         r.status = "noPower";
         continue;
       }
@@ -285,6 +309,14 @@ export function simulatePeriod(state: GameState): PeriodSim {
       }
     }
     for (const [k, v] of Object.entries(def.produces) as [ResourceId, number][]) add(r.produced, k, Math.floor(v * r.efficiency));
+    // 양수 펌프: 연결된 수도망 원수 공급량 증가
+    if (def.pumpBoost && water) water.rawCapacity += Math.floor(def.pumpBoost * r.efficiency);
+  }
+
+  // 축전지 충전·방전
+  for (const n of powerNets) {
+    if (!n.battery.capacity) continue;
+    n.battery.delta = n.used > n.supply ? -(n.used - n.supply) : Math.min(n.battery.capacity - n.battery.charge, n.supply - n.used);
   }
 
   // 3-2) 재배 시설: 가동하면 1 자라고, '농사' 업무 생존자 1명이 재배 시설 2곳을 1씩 더 키운다

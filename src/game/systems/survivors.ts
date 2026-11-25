@@ -3,7 +3,7 @@
 
 import { FACILITY_BY_ID } from "../config/facilities";
 import { RULES } from "../config/rules";
-import { BACKGROUNDS, JOB_BY_ID, NAMES, SKILLS, SURVIVOR_RULES as R, type JobId } from "../config/survivors";
+import { BACKGROUNDS, JOB_BY_ID, NAMES, SKILLS, SURVIVOR_RULES as R, type JobId, type SkillId } from "../config/survivors";
 import { RESOURCE_BY_ID } from "../config/resources";
 import { RECIPES } from "../config/actions";
 import { nextRandom, randomInt } from "../core/random";
@@ -344,8 +344,30 @@ export function processWork(state: GameState): GameState {
       if (Object.keys(capped.lost).length) text += ` (저장 공간 부족으로 ${bundleText(capped.lost)} 버림)`;
     }
     s = log(s, `${sv.name} — ${text}`, "build");
+    // 업데이트 5: 같은 일을 계속하면 그 능력치가 오른다 (최대 5)
+    s = gainXp(s, sv.id, job.skill);
   }
   return { ...s, seed };
+}
+
+/** 능력치를 올리는 데 필요한 작업 구간 수: 기본 + 현재 능력치 × 배수 */
+export function xpNeeded(level: number): number {
+  return R.xpBase + R.xpPerLevel * level;
+}
+
+export function gainXp(state: GameState, id: string, skill: SkillId | null): GameState {
+  if (!skill) return state;
+  const sv = state.survivors.find((x) => x.id === id);
+  if (!sv || sv.skills[skill] >= 5) return state;
+  const xp = (sv.xp?.[skill] ?? 0) + 1;
+  if (xp < xpNeeded(sv.skills[skill])) return { ...state, survivors: state.survivors.map((x) => (x.id === id ? { ...x, xp: { ...x.xp, [skill]: xp } } : x)) };
+  const level = sv.skills[skill] + 1;
+  const name = SKILLS.find((k) => k.id === skill)!.name;
+  const s = {
+    ...state,
+    survivors: state.survivors.map((x) => (x.id === id ? { ...x, skills: { ...x.skills, [skill]: level }, xp: { ...x.xp, [skill]: 0 } } : x)),
+  };
+  return log(s, `${sv.name}의 ${name} 능력치가 ${level}(으)로 올랐다.${level === 5 ? ` ${name} 전문가가 되었다!` : ""}`, "event");
 }
 
 /** 구간 종료 시 피로·건강 변화. shortage: 배급하지 못한 자원 */
@@ -358,13 +380,26 @@ export function processNeeds(state: GameState, shortage: ResourceBundle): GameSt
     if (access.roomAccess[room.id]) for (const f of room.facilities) restBonus = Math.max(restBonus, FACILITY_BY_ID[f.type].restBonus);
   const out: Survivor[] = [];
   let s = state;
+  let seed = state.seed;
+  // 플레이어는 이번 구간에 행동을 하나도 안 했으면 쉰 것으로 본다
+  const playerRested = state.actionsLeft >= RULES.actionsPerPhase;
   for (const sv of state.survivors) {
     let { health, fatigue } = sv;
     const resting = !sv.isPlayer && (sv.job === "rest" || sv.fatigue >= 100);
+    const restedForHealth = sv.isPlayer ? playerRested : resting;
     if (!sv.isPlayer) fatigue = resting ? fatigue - R.restRecovery - restBonus : fatigue + R.workFatigue + workFatigueExtra(sv);
     if (sv.fatigue >= 100) health -= R.exhaustedHealthLoss;
     if (starving) health -= R.starvationHealthLoss * starving;
-    else if (resting) health += R.restHealthGain;
+    else if (restedForHealth) {
+      // 쉬면 일정 확률로 건강이 조금 회복된다 (부상·질병이 없어도)
+      let roll: number;
+      [roll, seed] = nextRandom(seed);
+      if (roll < R.restHealChance) {
+        let g: number;
+        [g, seed] = randomInt(seed, 1, R.restHealthGain);
+        health += g;
+      }
+    }
     health = Math.max(0, Math.min(100, health));
     fatigue = Math.max(0, Math.min(100, fatigue));
     if (health <= 0 && !sv.isPlayer) {
@@ -375,17 +410,26 @@ export function processNeeds(state: GameState, shortage: ResourceBundle): GameSt
     if (fatigue >= 100 && sv.fatigue < 100) s = log(s, `${sv.name}이(가) 탈진했다.`, "warn");
     out.push({ ...sv, health, fatigue });
   }
-  return { ...s, survivors: out };
+  return { ...s, survivors: out, seed };
 }
 
 /** 밤잠: 침상 수만큼 침상에서 자고, 나머지는 바닥에서 잔다 */
 export function processSleep(state: GameState): GameState {
   const beds = bedCount(state);
-  const survivors = state.survivors.map((sv, i) => ({
-    ...sv,
-    fatigue: Math.max(0, sv.fatigue - (i < beds ? R.sleepRecoveryBed : R.sleepRecoveryNoBed)),
-  }));
-  let s = { ...state, survivors };
+  let seed = state.seed;
+  const survivors = state.survivors.map((sv, i) => {
+    // 밤잠: 피로 회복 + 일정 확률로 건강 조금 회복
+    let roll: number;
+    [roll, seed] = nextRandom(seed);
+    let health = sv.health;
+    if (roll < (i < beds ? R.sleepHealChanceBed : R.sleepHealChanceFloor)) {
+      let g: number;
+      [g, seed] = randomInt(seed, 1, 2);
+      health = Math.min(100, health + g);
+    }
+    return { ...sv, health, fatigue: Math.max(0, sv.fatigue - (i < beds ? R.sleepRecoveryBed : R.sleepRecoveryNoBed)) };
+  });
+  let s = { ...state, survivors, seed };
   if (beds < state.survivors.length) s = log(s, `침상이 부족해 ${state.survivors.length - beds}명이 바닥에서 잤다.`, "warn");
   return s;
 }

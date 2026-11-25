@@ -6,7 +6,7 @@ import { createPlayer } from "../systems/survivors";
 import { createWorld } from "../systems/world";
 import type { FacilityTypeId, GameState, Rect, Room, RoomTypeId } from "../core/types";
 
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 
 /** 확장 구역 안에 남아 있는 방 (구역을 열고 길을 뚫어야 쓸 수 있다) */
 export const ZONE_PRESET_ROOMS: PresetRoom[] = [
@@ -15,6 +15,12 @@ export const ZONE_PRESET_ROOMS: PresetRoom[] = [
     type: "storage",
     rect: { x: 36, y: 4, w: 3, h: 2 },
     facilities: [{ type: "crate", x: 36, y: 4, durability: 50 }],
+  },
+  {
+    name: "옛 변전소",
+    type: "power",
+    rect: { x: 5, y: 19, w: 5, h: 4 },
+    facilities: [{ type: "substation", x: 6, y: 20, durability: 0 }],
   },
 ];
 
@@ -89,6 +95,9 @@ export function createInitialState(seed: number = Date.now() % 2147483647): Game
     relations: {},
     craftTarget: "parts",
     feastDay: 0,
+    goals: [],
+    stats: { harvests: 0, expeditions: 0, raidsRepelled: 0 },
+    cityDay: null,
     world: createWorld(),
     log: [
       {

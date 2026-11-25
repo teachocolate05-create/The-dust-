@@ -12,6 +12,7 @@ import type { TileType } from "../core/types";
 //   E  지상 출입구      W  급수원             S  봉쇄된 셔터 (구역 개방으로 열림)
 //
 // 30열부터 오른쪽은 확장 구역이다 (config/zones.ts). 처음에는 셔터로 막혀 있다.
+// 17행부터 아래는 지하 2층이다 (업데이트 5). 승강장 왼쪽 끝의 점검 통로와 셔터로 내려간다.
 // ─────────────────────────────────────────────────────────────
 export const STATION_LAYOUT: string[] = [
   "##############EE##############################",
@@ -28,8 +29,20 @@ export const STATION_LAYOUT: string[] = [
   "#dd....dddddddddddddddddddddd########SS#######",
   "#============================#d..d..d..d..d.W#",
   "#============================#..d..d..d..d..d#",
-  "#TTTTTTTTTTTTTTTTTTTTTTTTTTTT#TTTTTTTTTTTTTTT#",
-  "#TTTTTTTTTTTTTTTTTTTTTTTTTTTT#TTTTTTTTTTTTTTT#",
+  "#TT.TTTTTTTTTTTTTTTTTTTTTTTTT#TTTTTTTTTTTTTTT#",
+  "#TT.TTTTTTTTTTTTTTTTTTTTTTTTT#TTTTTTTTTTTTTTT#",
+  "###S##########################################",
+  "#d...ddddddddddddddddd#dddddddddddddddddddddd#",
+  "#d...ddddddddddddddddd#dddddddddddddddddddddd#",
+  "#dddd.....dddddddddddd#ddddddddddddddddddddWd#",
+  "#dddd.....dddPddddPddd#ddddPd.....P.....dPddd#",
+  "#dddd.....ddddddddddddSdddddd.....d.....ddddd#",
+  "#dddd.....ddddddddddddSdddddd.....d.....ddddd#",
+  "#ddddddddddddddddddddd#dddddd.....d.....ddddd#",
+  "#ddddddddddddPddddPddd#ddddPd.....P.....dPddd#",
+  "#ddddddddddddddddddddd#ddddddddddddddddddddWd#",
+  "#ddddddddddddddddddddd#dddddddddddddddddddddd#",
+  "#ddddddddddddddddddddd#dddddddddddddddddddddd#",
   "##############################################",
 ];
 

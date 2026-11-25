@@ -55,6 +55,7 @@ export default function TopBar({ state, cap, forecast, onOpenStatus, onNewGame }
             위협: {state.threat.name}
           </span>
         )}
+        {state.cityDay !== null && <span className="city-chip">독립 생존 거점</span>}
         <span className="pop-chip" title="인원 / 침상">
           인원 <b>{population(state)}</b>
           <span className="muted">/침상 {bedCount(state)}</span>

@@ -4,7 +4,7 @@ import { JOBS, SKILLS, SURVIVOR_RULES } from "@/game/config/survivors";
 import type { GameState, Survivor } from "@/game/core/types";
 import type { JobId } from "@/game/config/survivors";
 import { canModifyBase } from "@/game/systems/phase";
-import { bedCount, canAccept, planWork, population, STATUS_TEXT, survivorStatus } from "@/game/systems/survivors";
+import { bedCount, canAccept, planWork, population, STATUS_TEXT, survivorStatus, xpNeeded } from "@/game/systems/survivors";
 import type { GameAction } from "@/game/state/reducer";
 import type { AskFn, Mode } from "./uiTypes";
 import { useState } from "react";
@@ -86,6 +86,7 @@ function Skills({ sv }: { sv: Survivor }) {
       {SKILLS.map((sk) => (
         <span key={sk.id} className={`skill ${sv.skills[sk.id] >= 4 ? "high" : ""} ${sk.used ? "" : "unused"}`} title={sk.desc}>
           {sk.name} {sv.skills[sk.id]}
+          {sv.skills[sk.id] >= 5 ? " ★" : sv.xp?.[sk.id] ? <span className="xp"> ({sv.xp[sk.id]}/{xpNeeded(sv.skills[sk.id])})</span> : null}
         </span>
       ))}
     </div>
@@ -323,7 +324,7 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
         </button>
       </div>
       <p className="muted small-text">
-        사기: 쉬면 오르고, 일하거나 굶거나 아프면 떨어집니다. 30 미만이면 효율이 떨어지고, 15 미만이면 밤사이 떠날 수 있습니다. 같은 일을 하는 사람끼리 친해지고, 친구가 있으면 사기가 오릅니다.
+        숙련: 같은 업무를 계속하면 그 능력치가 오릅니다 (괄호 안은 다음 단계까지 남은 작업 구간, ★ = 전문가). 사기: 쉬면 오르고, 일하거나 굶거나 아프면 떨어집니다. 30 미만이면 효율이 떨어지고, 15 미만이면 밤사이 떠날 수 있습니다. 같은 일을 하는 사람끼리 친해지고, 친구가 있으면 사기가 오릅니다.
       </p>
       <p className="muted small-text">관리 능력은 이후 업데이트에서 쓰입니다.</p>
     </div>
