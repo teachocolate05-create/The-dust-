@@ -36,7 +36,8 @@ export type GameAction =
   | { type: "ACCEPT_SURVIVOR"; index: number }
   | { type: "DISMISS_SURVIVOR"; index: number }
   | { type: "MARK_DEBRIS"; points: Point[]; on: boolean }
-  | { type: "OPEN_ZONE"; zoneId: string };
+  | { type: "OPEN_ZONE"; zoneId: string }
+  | { type: "SET_CRAFT_TARGET"; target: GameState["craftTarget"] };
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   // 게임 오버 후에는 새 게임·불러오기만 가능
@@ -95,5 +96,7 @@ function applyAction(state: GameState, action: GameAction): GameState {
       return survivors.setDebrisMarks(state, action.points, action.on);
     case "OPEN_ZONE":
       return openZone(state, action.zoneId);
+    case "SET_CRAFT_TARGET":
+      return state.craftTarget === action.target ? state : { ...state, craftTarget: action.target };
   }
 }

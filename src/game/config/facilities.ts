@@ -35,6 +35,10 @@ export interface FacilityDef {
   advanced: boolean;
   /** 쉬는 생존자의 구간당 추가 피로 회복 (공동 생활실) */
   restBonus: number;
+  /** 재배 시설: 가동한 구간마다 1씩 자라 cycle에 이르면 식량 yield 수확 (업데이트 3) */
+  crop?: { cycle: number; yield: number };
+  /** 조리 설비: 가동 중이면 식량 소비 25% 절약, 구간마다 사기 +1 (업데이트 3) */
+  kitchen?: boolean;
 
   /** 지도에 쓰는 짧은 표시 */
   glyph: string;
@@ -99,6 +103,13 @@ export const FACILITIES: FacilityDef[] = [
   { ...base, id: "big_tank", name: "대형 물탱크", w: 3, h: 2, room: "water", cost: { materials: 20, parts: 4 }, advanced: true, storage: { water: 50 }, glyph: "대형탱크", desc: "고급 설비. 식수를 대량으로 저장합니다." },
   { ...base, id: "hi_gen", name: "고효율 발전기", w: 3, h: 2, room: "power", cost: { materials: 30, parts: 15 }, advanced: true, operates: true, decay: 1, power: 20, consumes: { fuel: 2 }, glyph: "고효율", desc: "고급 설비. 같은 연료로 훨씬 많은 전력을 만들고 덜 닳습니다." },
   { ...base, id: "big_filter", name: "대형 정수기", w: 3, h: 2, room: "water", cost: { materials: 25, parts: 10 }, advanced: true, operates: true, decay: 1, power: -3, produces: { water: 8 }, glyph: "대형정수", desc: "고급 설비. 급수원 원수 8을 모두 정수합니다." },
+  // ── 업데이트 3: 생산 및 자급자족 ──
+  { ...base, id: "planter", name: "재배상", w: 2, h: 2, room: "farm", cost: { materials: 10, parts: 2 }, operates: true, decay: 1, power: -1, consumes: { water: 1 }, crop: { cycle: 6, yield: 6 }, glyph: "재배", desc: "재배등(전력 1)과 물 1로 채소를 기릅니다. 6구간마다 식량 6 수확." },
+  { ...base, id: "mushroom_bed", name: "버섯 재배상", w: 2, h: 1, room: "farm", cost: { materials: 6 }, operates: true, power: 0, consumes: { water: 1 }, crop: { cycle: 9, yield: 4 }, glyph: "버섯", desc: "빛 없이 물만으로 자랍니다. 느리지만 전력이 필요 없습니다. 9구간마다 식량 4." },
+  { ...base, id: "hydroponics", name: "자동 재배기", w: 3, h: 2, room: "farm", cost: { materials: 25, parts: 10 }, advanced: true, operates: true, decay: 1, power: -3, consumes: { water: 2 }, crop: { cycle: 4, yield: 8 }, glyph: "수경", desc: "고급 설비. 수경 재배로 빠르게 많이 기릅니다. 4구간마다 식량 8." },
+  { ...base, id: "stove", name: "조리대", w: 2, h: 1, room: "common", cost: { materials: 10, parts: 4 }, operates: true, decay: 1, power: -1, kitchen: true, glyph: "조리", desc: "따뜻한 식사로 식량을 아껴 먹습니다 (소비 25% 절약), 모두 사기 +1/구간." },
+  { ...base, id: "refinery", name: "연료 정제기", w: 2, h: 2, room: "workshop", cost: { materials: 20, parts: 8 }, advanced: true, operates: true, decay: 1, power: -2, consumes: { materials: 3 }, produces: { fuel: 2 }, glyph: "정제", desc: "고급 설비. 구간마다 자재 3으로 연료 2를 자동 생산합니다." },
+  { ...base, id: "lathe", name: "부품 가공기", w: 2, h: 2, room: "workshop", cost: { materials: 22, parts: 6 }, advanced: true, operates: true, decay: 1, power: -3, consumes: { materials: 4 }, produces: { parts: 1 }, glyph: "가공", desc: "고급 설비. 구간마다 자재 4로 부품 1을 자동 생산합니다." },
   // ── 업데이트 2: 생존자 생활 ──
   { ...base, id: "med_bed", name: "진료 침대", w: 2, h: 1, room: "medical", cost: { materials: 8, parts: 2 }, glyph: "진료", desc: "'치료' 업무 성공 확률 +15%." },
   { ...base, id: "med_cabinet", name: "약품 선반", w: 1, h: 1, room: "medical", cost: { materials: 5, parts: 3 }, glyph: "약", desc: "'치료' 업무 성공 확률 +10%." },

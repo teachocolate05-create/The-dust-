@@ -5,6 +5,7 @@ import { FACILITY_BY_ID } from "../config/facilities";
 import { RULES } from "../config/rules";
 import { BACKGROUNDS, JOB_BY_ID, NAMES, SKILLS, SURVIVOR_RULES as R, type JobId } from "../config/survivors";
 import { RESOURCE_BY_ID } from "../config/resources";
+import { RECIPES } from "../config/actions";
 import { nextRandom, randomInt } from "../core/random";
 import { bundleText, canAfford } from "../core/resources";
 import type { Check, GameState, LogEntry, PendingSurvivor, Point, ResourceBundle, ResourceId, Survivor } from "../core/types";
@@ -16,6 +17,11 @@ import { threatInjury } from "./events";
 import { THREAT_RULES } from "../config/events";
 
 export const PLAYER_ID = "player";
+
+/** '제작' 업무가 만드는 품목 */
+export function craftRecipe(state: GameState) {
+  return RECIPES.find((r) => r.id === state.craftTarget) ?? RECIPES[0];
+}
 
 export function createPlayer(): Survivor {
   return {
@@ -226,15 +232,20 @@ export function planWork(state: GameState): WorkPlan[] {
         plan.expect = `지정 잔해 ${n}칸`;
         if (state.debrisMarks.length === 0) plan.blocked = "정리할 잔해가 지정되지 않았습니다 (행동 탭 → 잔해 정리 → 정리 지정)";
         else if (reachableMarks(state).length === 0) plan.blocked = "지정한 잔해 중 통로와 맞닿은 칸이 없습니다";
+      } else if (s.job === "farm") {
+        const crops = state.rooms.flatMap((r) => r.facilities).filter((f) => FACILITY_BY_ID[f.type].crop).length;
+        plan.expect = `재배 시설 최대 2곳 성장 +1, 수확량 +${Math.round(10 * Math.max(0, s.skills.farm - 1))}%`;
+        if (crops === 0) plan.blocked = "재배 시설이 없습니다 (농업실에 재배상·버섯 재배상)";
       } else if (s.job === "heal") {
         const anyone = state.survivors.some((x) => x.conditions.length);
         plan.expect = `치료 성공 확률 ${Math.round(healChance(state, s) * 100)}%`;
         if (!anyone) plan.expect += " (지금은 환자 없음)";
       } else if (s.job === "maintain") plan.expect = `기계 내구도 +${Math.round(R.maintainBase + R.maintainPerSkill * s.skills.tech * (s.fatigue >= R.tiredAt ? 0.5 : 1))}`;
       else if (s.job === "craft") {
-        plan.expect = `${bundleText(R.craftInput)} → ${bundleText(R.craftOutput)}`;
+        const rc = craftRecipe(state);
+        plan.expect = `${rc.name}: ${bundleText(rc.input)} → ${bundleText(rc.output)}`;
         if (!hasWorking(state, "workbench")) plan.blocked = "전력이 들어오는 작업대가 없습니다";
-        else if (!canAfford(state.resources, R.craftInput)) plan.blocked = "자재가 부족합니다";
+        else if (!canAfford(state.resources, rc.input)) plan.blocked = `재료가 부족합니다 (${bundleText(rc.input)} 필요)`;
       }
       if (s.fatigue >= R.tiredAt && s.job !== "rest") plan.expect += " (피로로 효율 절반)";
       return plan;
@@ -310,18 +321,21 @@ export function processWork(state: GameState): GameState {
         };
         text = `${tg.name} 내구도 +${amount}`;
       } else text = "손볼 기계가 없었다";
+    } else if (sv.job === "farm") {
+      text = "재배 시설을 돌봤다";
     } else if (sv.job === "heal") {
       const r = doHeal({ ...s, seed }, sv);
       s = r.state;
       seed = s.seed;
       text = r.text;
     } else if (sv.job === "craft") {
-      if (hasWorking(s, "workbench") && canAfford(s.resources, R.craftInput)) {
+      const rc = craftRecipe(s);
+      if (hasWorking(s, "workbench") && canAfford(s.resources, rc.input)) {
         const r = { ...s.resources };
-        for (const [k, v] of Object.entries(R.craftInput) as [ResourceId, number][]) r[k] -= v;
+        for (const [k, v] of Object.entries(rc.input) as [ResourceId, number][]) r[k] -= v;
         s = { ...s, resources: r };
-        gained = { ...R.craftOutput };
-        text = `제작: ${bundleText(R.craftOutput)}`;
+        gained = { ...rc.output };
+        text = `제작(${rc.name}): ${bundleText(rc.output)}`;
       } else text = "제작할 수 없었다 (작업대·자재 확인)";
     }
     if (Object.keys(gained).length) {

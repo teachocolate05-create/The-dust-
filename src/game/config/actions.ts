@@ -121,12 +121,13 @@ export const ACTIONS: ActionDef[] = [
   },
 ];
 
-export type RecipeId = "parts" | "fuel";
+export type RecipeId = "parts" | "fuel" | "recycle";
 
 /** 직접 제작 목록 (작업대 필요) */
 export const RECIPES: { id: RecipeId; name: string; input: Partial<Record<ResourceId, number>>; output: Partial<Record<ResourceId, number>> }[] = [
   { id: "parts", name: "부품 제작", input: { materials: 4 }, output: { parts: 1 } },
   { id: "fuel", name: "고체 연료 만들기", input: { materials: 3 }, output: { fuel: 1 } },
+  { id: "recycle", name: "자재 재활용", input: { parts: 1 }, output: { materials: 3 } },
 ];
 
 export const ACTION_BY_ID = Object.fromEntries(ACTIONS.map((a) => [a.id, a])) as Record<ActionId, ActionDef>;

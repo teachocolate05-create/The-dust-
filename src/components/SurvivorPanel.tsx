@@ -7,6 +7,9 @@ import { canModifyBase } from "@/game/systems/phase";
 import { bedCount, canAccept, planWork, population, STATUS_TEXT, survivorStatus } from "@/game/systems/survivors";
 import type { GameAction } from "@/game/state/reducer";
 import type { AskFn, Mode } from "./uiTypes";
+import { useState } from "react";
+import { RECIPES } from "@/game/config/actions";
+import { bundleText } from "@/game/core/resources";
 import { LIFE_RULES, TRAIT_BY_ID } from "@/game/config/life";
 import { closest, conditionName, moraleLabel } from "@/game/systems/life";
 
@@ -32,16 +35,32 @@ function Bar({ label, value, invert }: { label: string; value: number; invert?: 
   );
 }
 
+/** 특성: 눌러서 설명 보기 (모바일에서도 확인 가능) */
 function Traits({ sv }: { sv: Survivor }) {
+  const [open, setOpen] = useState<string | null>(null);
   if (!sv.traits.length) return null;
+  const def = open ? TRAIT_BY_ID[open as keyof typeof TRAIT_BY_ID] : null;
   return (
-    <div className="skill-row">
-      {sv.traits.map((t) => (
-        <span key={t} className="trait" title={TRAIT_BY_ID[t].desc}>
-          {TRAIT_BY_ID[t].name}
-        </span>
-      ))}
-    </div>
+    <>
+      <div className="skill-row">
+        {sv.traits.map((t) => (
+          <button
+            key={t}
+            type="button"
+            className={`trait ${open === t ? "on" : ""}`}
+            aria-expanded={open === t}
+            onClick={() => setOpen(open === t ? null : t)}
+          >
+            {TRAIT_BY_ID[t].name} <span aria-hidden>ⓘ</span>
+          </button>
+        ))}
+      </div>
+      {def && (
+        <div className="trait-info" role="note">
+          <b>{def.name}</b> — {def.desc}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -218,6 +237,23 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
         })}
       </ul>
 
+      <h4 className="section-title">제작 업무 품목</h4>
+      <label className="job-row">
+        <span>만들 것</span>
+        <select
+          className="input compact"
+          value={state.craftTarget}
+          onChange={(e) => run({ type: "SET_CRAFT_TARGET", target: e.target.value as GameState["craftTarget"] }, "제작 품목을 바꿨습니다.")}
+        >
+          {RECIPES.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name} ({bundleText(r.input)} → {bundleText(r.output)})
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="muted small-text">'제작' 업무를 맡은 생존자가 구간마다 이 품목을 하나씩 만듭니다. 전력이 들어오는 작업대가 필요합니다.</p>
+
       <h4 className="section-title">잔해 정리 지정</h4>
       <p className="muted small-text">
         '잔해 정리' 업무를 맡은 생존자는 지정한 잔해 중 통로와 맞닿은 칸부터 치웁니다. 지정은 언제든 무료입니다. 지정된 잔해: {state.debrisMarks.length}칸
@@ -233,7 +269,7 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
       <p className="muted small-text">
         사기: 쉬면 오르고, 일하거나 굶거나 아프면 떨어집니다. 30 미만이면 효율이 떨어지고, 15 미만이면 밤사이 떠날 수 있습니다. 같은 일을 하는 사람끼리 친해지고, 친구가 있으면 사기가 오릅니다.
       </p>
-      <p className="muted small-text">농업·관리 능력은 이후 업데이트(농업실 등)에서 쓰입니다.</p>
+      <p className="muted small-text">관리 능력은 이후 업데이트에서 쓰입니다.</p>
     </div>
   );
 }

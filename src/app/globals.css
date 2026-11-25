@@ -1583,3 +1583,21 @@ b {
 .rel-rival {
   color: #ff9a8a;
 }
+button.trait {
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  min-height: 26px;
+}
+button.trait.on {
+  background: #574468;
+  border-color: #9a7ab3;
+}
+.trait-info {
+  font-size: 12.5px;
+  background: #2a2333;
+  border: 1px solid #574468;
+  border-radius: 6px;
+  padding: 6px 9px;
+  color: #e2d3f0;
+}

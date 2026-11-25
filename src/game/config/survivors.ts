@@ -7,11 +7,11 @@ export const SKILLS: { id: SkillId; name: string; desc: string; used: boolean }[
   { id: "tech", name: "기술", desc: "발전기·기계 수리, 제작", used: true },
   { id: "gather", name: "채집", desc: "자원 수집, 식량 확보, 잔해 정리", used: true },
   { id: "medic", name: "의료", desc: "부상·질병 치료 ('치료' 업무)", used: true },
-  { id: "farm", name: "농업", desc: "작물 재배 (농업실과 함께 업데이트 3)", used: false },
+  { id: "farm", name: "농업", desc: "작물 재배 ('농사' 업무)", used: true },
   { id: "manage", name: "관리", desc: "창고·자원 관리 (이후 업데이트)", used: false },
 ];
 
-export type JobId = "rest" | "debris" | "scavenge" | "forage" | "maintain" | "craft" | "heal";
+export type JobId = "rest" | "debris" | "scavenge" | "forage" | "maintain" | "craft" | "heal" | "farm";
 
 export interface JobDef {
   id: JobId;
@@ -30,8 +30,9 @@ export const JOBS: JobDef[] = [
   { id: "scavenge", name: "자원 수집", skill: "gather", desc: "폐허에서 자재와 부품을 모아 온다.", outside: true, yields: { materials: [2, 4], parts: [0, 1] } },
   { id: "forage", name: "식량 확보", skill: "gather", desc: "먹을 것과 물을 구해 온다.", outside: true, yields: { food: [1, 3], water: [0, 2] } },
   { id: "maintain", name: "시설 관리", skill: "tech", desc: "가장 많이 닳은 기계를 손봐 내구도를 회복시킨다.", outside: false },
+  { id: "farm", name: "농사", skill: "farm", desc: "재배 시설 2곳을 돌봐 더 빨리 자라게 하고, 농업 능력치가 높을수록 수확량이 늘어난다.", outside: false },
   { id: "heal", name: "치료", skill: "medic", desc: "다치거나 아픈 사람을 돌본다. 의료실의 진료 침대·약품 선반이 있으면 더 잘 고친다.", outside: false },
-  { id: "craft", name: "제작", skill: "tech", desc: "작업대에서 자재 4로 부품 1을 만든다. 전력이 들어오는 작업대가 필요하다.", outside: false },
+  { id: "craft", name: "제작", skill: "tech", desc: "작업대에서 지정한 품목(부품·고체 연료·자재 재활용)을 만든다. 전력이 들어오는 작업대가 필요하다.", outside: false },
 ];
 
 export const JOB_BY_ID = Object.fromEntries(JOBS.map((j) => [j.id, j])) as Record<JobId, JobDef>;
@@ -67,9 +68,6 @@ export const SURVIVOR_RULES = {
   /** 시설 관리: 회복량 = 기본 + 능력치 × 배수 */
   maintainBase: 4,
   maintainPerSkill: 2,
-  /** 제작 업무 */
-  craftInput: { materials: 4 },
-  craftOutput: { parts: 1 },
 
   /** 생존자 수색 성공 확률 (낮 / 야간) */
   searchChance: 0.4,

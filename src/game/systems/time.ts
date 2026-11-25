@@ -16,10 +16,13 @@ import { SURVIVOR_RULES } from "../config/survivors";
 
 export { population };
 
-export function upkeep(state: GameState): ResourceBundle {
+/** 인원의 식량·식수 소비. 조리대가 가동 중이면 식량 25% 절약 (올림) */
+export function upkeep(state: GameState, sim?: PeriodSim): ResourceBundle {
   const people = population(state);
+  const kitchen = (sim ?? simulatePeriod(state)).reports.some((r) => r.status === "running" && FACILITY_BY_ID[r.type].kitchen);
   const out: ResourceBundle = {};
-  for (const [k, v] of Object.entries(RULES.upkeepPerPerson) as [ResourceId, number][]) out[k] = v * people;
+  for (const [k, v] of Object.entries(RULES.upkeepPerPerson) as [ResourceId, number][])
+    out[k] = k === "food" && kitchen ? Math.ceil(v * people * 0.75) : v * people;
   return out;
 }
 
@@ -47,7 +50,7 @@ export interface PhaseForecast {
 export function forecastPhaseEnd(state: GameState): PhaseForecast {
   const warnings: string[] = [];
   const sim = simulatePeriod(state);
-  const up = isDayPhase(state.phase) ? upkeep(state) : {};
+  const up = isDayPhase(state.phase) ? upkeep(state, sim) : {};
   const production = isDayPhase(state.phase) ? sim.production : {};
   const facilityUse = isDayPhase(state.phase) ? sim.facilityUse : {};
   const cap = capacity(state);
@@ -158,12 +161,20 @@ export function endPhase(state: GameState): GameState {
   // 3) 내구도 감소와 고장
   let seed = s.seed;
   const breakdowns: string[] = [];
+  const harvests: string[] = [];
   s = {
     ...s,
     rooms: s.rooms.map((room) => ({
       ...room,
       facilities: room.facilities.map((fac) => {
         const rep = f.sim.byId[fac.id];
+        // 재배 시설 성장 (수확하면 처음부터)
+        if (rep && rep.grow > 0) {
+          const crop = FACILITY_BY_ID[fac.type].crop!;
+          const g = (fac.growth ?? 0) + rep.grow;
+          fac = { ...fac, growth: g >= crop.cycle ? 0 : g };
+          if (rep.harvest) harvests.push(`${FACILITY_BY_ID[fac.type].name} 수확: 식량 +${rep.produced.food ?? 0}`);
+        }
         if (!rep || rep.decay <= 0) return fac;
         let durability = Math.max(0, fac.durability - rep.decay);
         const name = FACILITY_BY_ID[fac.type].name;
@@ -182,6 +193,7 @@ export function endPhase(state: GameState): GameState {
     seed,
   };
   for (const b of breakdowns) s = addLog(s, b, "warn");
+  for (const h of harvests) s = addLog(s, h, "build");
 
   // 사건
   s = rollEvents(s);

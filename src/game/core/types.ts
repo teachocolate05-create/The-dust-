@@ -18,7 +18,7 @@ export type TileType =
   | "watersource" // 급수원 (지하수 배관)
   | "sealed"; // 봉쇄된 셔터 (구역 개방으로 열림)
 
-export type RoomTypeId = "residence" | "storage" | "power" | "water" | "workshop" | "common" | "medical";
+export type RoomTypeId = "residence" | "storage" | "power" | "water" | "workshop" | "common" | "medical" | "farm";
 
 export type FacilityTypeId =
   | "cot"
@@ -42,7 +42,13 @@ export type FacilityTypeId =
   | "hi_gen"
   | "big_filter"
   | "med_bed"
-  | "med_cabinet";
+  | "med_cabinet"
+  | "planter"
+  | "mushroom_bed"
+  | "hydroponics"
+  | "stove"
+  | "refinery"
+  | "lathe";
 
 /** 시간 구간. 오전/오후/야간 + 정비 시간 */
 export type Phase = "morning" | "afternoon" | "night" | "maintenance";
@@ -70,6 +76,8 @@ export interface Facility {
   durability: number;
   /** 가동 스위치 (가동하는 기계만 의미 있음) */
   enabled: boolean;
+  /** 작물 성장 단계 (재배 시설만, 업데이트 3) */
+  growth?: number;
 }
 
 export interface Room {
@@ -122,6 +130,8 @@ export interface GameState {
   zones: string[];
   /** 생존자 사이 관계 점수 (-100~100). 키는 두 id를 정렬해 "a|b" */
   relations: Record<string, number>;
+  /** '제작' 업무가 만드는 품목 (업데이트 3) */
+  craftTarget: "parts" | "fuel" | "recycle";
   /** 게임 오버 정보. null이면 진행 중 */
   gameOver: { day: number; phase: Phase; reason: string } | null;
 }
@@ -154,7 +164,7 @@ export interface Survivor {
   /** 피로 0~100 */
   fatigue: number;
   skills: SkillLevels;
-  job: "rest" | "debris" | "scavenge" | "forage" | "maintain" | "craft" | "heal";
+  job: "rest" | "debris" | "scavenge" | "forage" | "maintain" | "craft" | "heal" | "farm";
   background: string;
   /** 성격·특성 (업데이트 2) */
   traits: TraitId[];

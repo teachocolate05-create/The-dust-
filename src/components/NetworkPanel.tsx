@@ -147,6 +147,11 @@ export default function NetworkPanel({ state, sim, setMode, setSelection }: Prop
           <span className="badge badge-todo">전력선</span>
         </li>
         <li>
+          <span>재배상·자동 재배기·조리대·정제기·가공기</span>
+          <span className="grow" />
+          <span className="badge badge-todo">전력선</span>
+        </li>
+        <li>
           <span>발전기</span>
           <span className="grow" />
           <span className="badge badge-todo">전력선으로 소비 시설과 연결</span>

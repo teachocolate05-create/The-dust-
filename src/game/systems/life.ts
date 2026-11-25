@@ -12,6 +12,7 @@ import { JOB_BY_ID, type JobId } from "../config/survivors";
 import { nextRandom, pickWeighted, randomInt } from "../core/random";
 import type { Condition, GameEvent, GameState, LogEntry, Survivor, TraitId } from "../core/types";
 import { computeAccess } from "./access";
+import { simulatePeriod } from "./operation";
 
 // ───────────── 공통 ─────────────
 
@@ -217,6 +218,8 @@ export function processLifePeriod(state: GameState, starving: boolean): GameStat
   let seed = s.seed;
   const access = computeAccess(s);
   const common = s.rooms.some((r) => access.roomAccess[r.id] && r.facilities.some((f) => FACILITY_BY_ID[f.type].restBonus > 0));
+  // 조리대 가동 중이면 따뜻한 식사로 모두 사기 +1
+  const kitchen = simulatePeriod(state).reports.some((r) => r.status === "running" && FACILITY_BY_ID[r.type].kitchen);
   const notes: string[] = [];
 
   for (const sv0 of state.survivors) {
@@ -226,6 +229,7 @@ export function processLifePeriod(state: GameState, starving: boolean): GameStat
     // 사기
     let dm = resting ? L.restMorale + (common ? L.commonMorale : 0) : L.workMorale;
     if (starving) dm += L.starveMorale;
+    else if (kitchen) dm += 1;
     if (sv.fatigue >= 100) dm += L.exhaustedMorale;
     if (sv.conditions.length) dm += L.conditionMorale;
     const { friend, rival } = closest(s, sv.id);

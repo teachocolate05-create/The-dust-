@@ -40,6 +40,7 @@ export function validateSave(data: any): data is GameState {
       if (typeof f?.id !== "string" || !FACILITY_BY_ID[f.type as keyof typeof FACILITY_BY_ID]) return false;
       if (!isInt(f.x) || !isInt(f.y) || typeof f.rotated !== "boolean" || typeof f.durability !== "number") return false;
       if (typeof f.enabled !== "boolean") return false;
+      if (f.growth !== undefined && !isInt(f.growth)) return false;
     }
   }
   if (!Array.isArray(data.log)) return false;
@@ -57,6 +58,7 @@ export function validateSave(data: any): data is GameState {
     return false;
   if (!data.events || !isInt(data.events.serial) || !Array.isArray(data.events.list)) return false;
   if (!data.relations || typeof data.relations !== "object" || !Object.values(data.relations).every((v) => typeof v === "number")) return false;
+  if (!["parts", "fuel", "recycle"].includes(data.craftTarget)) return false;
   if (!Array.isArray(data.zones) || !data.zones.every((z: any) => typeof z === "string")) return false;
   if (data.gameOver !== null && (typeof data.gameOver?.reason !== "string" || !isInt(data.gameOver?.day))) return false;
   return true;
@@ -143,6 +145,8 @@ export function migrateSave(data: any): any {
       seed,
     };
   }
+  // 업데이트 2 → 업데이트 3: 제작 품목 지정
+  if (data && data.version === 8) data = { ...data, version: 9, craftTarget: "parts" };
   return data;
 }
 

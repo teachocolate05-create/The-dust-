@@ -85,6 +85,7 @@ export type FacilityStatus =
   | "noPowerLine" // 전력선 미연결
   | "noWaterLine" // 급수원과 이어진 수도관 없음
   | "noRawWater" // 급수원 공급량 부족
+  | "noInput" // 재료(물·자재) 부족
   | "isolated"; // 방이 통로와 끊겨 접근 불가
 
 export const STATUS_LABEL: Record<FacilityStatus, string> = {
@@ -97,6 +98,7 @@ export const STATUS_LABEL: Record<FacilityStatus, string> = {
   noPowerLine: "전력선 미연결",
   noWaterLine: "수도관 미연결",
   noRawWater: "원수 부족",
+  noInput: "재료 부족",
   isolated: "접근 불가",
 };
 
@@ -111,6 +113,9 @@ export interface FacilityReport {
   produced: ResourceBundle;
   consumed: ResourceBundle;
   decay: number;
+  /** 재배 시설: 이번 구간 자라는 양, 수확 여부 */
+  grow: number;
+  harvest: boolean;
   /** 연결된 전력망·수도망 번호 */
   powerNet?: number;
   waterNet?: number;
@@ -166,6 +171,8 @@ export function simulatePeriod(state: GameState): PeriodSim {
     produced: {},
     consumed: {},
     decay: 0,
+    grow: 0,
+    harvest: false,
   });
 
   // 1) 기본 상태
@@ -261,7 +268,46 @@ export function simulatePeriod(state: GameState): PeriodSim {
       }
       water.rawUsed += rawNeed;
     }
+    // 재료를 쓰는 시설 (재배 시설의 물, 정제기·가공기의 자재)
+    if (Object.keys(def.consumes).length) {
+      if (!canAfford(stock, def.consumes)) {
+        r.status = "noInput";
+        if (r.powerIn) {
+          pn(r.powerNet)!.used -= r.powerIn;
+          used -= r.powerIn;
+          r.powerIn = 0;
+        }
+        continue;
+      }
+      for (const [k, v] of Object.entries(def.consumes) as [ResourceId, number][]) {
+        stock[k] -= v;
+        add(r.consumed, k, v);
+      }
+    }
     for (const [k, v] of Object.entries(def.produces) as [ResourceId, number][]) add(r.produced, k, Math.floor(v * r.efficiency));
+  }
+
+  // 3-2) 재배 시설: 가동하면 1 자라고, '농사' 업무 생존자 1명이 재배 시설 2곳을 1씩 더 키운다
+  const farmers = state.survivors.filter((x) => !x.isPlayer && x.job === "farm" && x.fatigue < 100);
+  const bestFarm = farmers.reduce((m, x) => Math.max(m, x.skills.farm), 0);
+  const crops = candidates
+    .filter((c) => c.status === "running" && FACILITY_BY_ID[c.type].crop)
+    .map((r) => ({ r, f: all.find((x) => x.f.id === r.facilityId)!.f }))
+    .sort((a, b) => (a.f.growth ?? 0) - (b.f.growth ?? 0));
+  crops.forEach(({ r }) => (r.grow = 1));
+  let tends = farmers.length * 2;
+  for (const c of crops) {
+    if (tends <= 0) break;
+    c.r.grow += 1;
+    tends--;
+  }
+  for (const { r, f } of crops) {
+    const crop = FACILITY_BY_ID[r.type].crop!;
+    if ((f.growth ?? 0) + r.grow >= crop.cycle) {
+      r.harvest = true;
+      const bonus = 1 + 0.1 * Math.max(0, bestFarm - 1);
+      add(r.produced, "food", Math.max(1, Math.floor(crop.yield * r.efficiency * bonus)));
+    }
   }
 
   // 4) 가동한 시설은 닳는다

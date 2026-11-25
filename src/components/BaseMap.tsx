@@ -212,6 +212,7 @@ export default function BaseMap(p: Props) {
           glyph={def.glyph}
           color={ROOM_TYPE_BY_ID[def.room].color}
           durability={f.durability / def.maxDurability}
+          growth={def.crop ? (f.growth ?? 0) / def.crop.cycle : undefined}
           selected={sel}
           faded={moving}
           fixed={def.fixed}
@@ -462,8 +463,10 @@ function FacilityShape(props: {
   faded: boolean;
   fixed: boolean;
   status?: FacilityStatus;
+  /** 작물 성장 비율 0~1 (재배 시설만) */
+  growth?: number;
 }) {
-  const { rect: r, glyph, color, durability, selected, faded, fixed, status } = props;
+  const { rect: r, glyph, color, durability, selected, faded, fixed, status, growth } = props;
   const x = r.x * S + 4;
   const y = r.y * S + 4;
   const w = r.w * S - 8;
@@ -480,6 +483,12 @@ function FacilityShape(props: {
       {status && status !== "passive" && status !== "isolated" && <StatusBadge x={x} y={y} status={status} />}
       {status === "broken" && (
         <path d={`M${x + 6} ${y + 6} L${x + w - 6} ${y + h - 6} M${x + w - 6} ${y + 6} L${x + 6} ${y + h - 6}`} stroke="#e0604f" strokeWidth={2} opacity={0.7} />
+      )}
+      {growth !== undefined && (
+        <g>
+          <rect x={x + 3} y={y + 3} width={w - 6} height={3} fill="#00000088" />
+          <rect x={x + 3} y={y + 3} width={(w - 6) * Math.min(1, growth)} height={3} fill="#9fdc6a" />
+        </g>
       )}
       {durability < 1 && (
         <g>

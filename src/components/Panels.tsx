@@ -314,7 +314,9 @@ function FacilityInfo({ state, room, facilityId, setSelection, setMode, run, sim
   for (const k of Object.keys(def.consumes) as ResourceId[]) effects.push({ label: `${RESOURCE_BY_ID[k].name} 소비`, value: `${def.consumes[k]}/구간` });
   for (const k of Object.keys(def.storage) as ResourceId[]) effects.push({ label: `${RESOURCE_BY_ID[k].name} 저장`, value: `+${def.storage[k]}` });
   if (def.decay) effects.push({ label: "가동 시 마모", value: `내구도 -${def.decay}/구간` });
-  if (def.beds) effects.push({ label: "침상", value: `${def.beds}`, note: "수용 인원은 5단계" });
+  if (def.beds) effects.push({ label: "침상", value: `${def.beds}` });
+  if (def.crop) effects.push({ label: "수확", value: `${def.crop.cycle}구간마다 식량 ${def.crop.yield}`, note: `성장 ${fac.growth ?? 0}/${def.crop.cycle}` });
+  if (def.kitchen) effects.push({ label: "조리", value: "식량 소비 25% 절약, 사기 +1/구간" });
 
   return (
     <div className="panel-body">
