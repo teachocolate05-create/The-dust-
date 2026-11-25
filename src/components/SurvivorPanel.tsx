@@ -10,6 +10,9 @@ import type { AskFn, Mode } from "./uiTypes";
 import { useState } from "react";
 import { RECIPES } from "@/game/config/actions";
 import { bundleText } from "@/game/core/resources";
+import { canFeast, feastCost } from "@/game/systems/world";
+import { REGION_BY_ID, WORLD_RULES, type RegionId } from "@/game/config/world";
+import { CostTag } from "./Panels";
 import { LIFE_RULES, TRAIT_BY_ID } from "@/game/config/life";
 import { closest, conditionName, moraleLabel } from "@/game/systems/life";
 
@@ -98,6 +101,7 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
   const others = state.survivors.filter((s) => !s.isPlayer);
   const avgMorale = others.length ? Math.round(others.reduce((n, s) => n + s.morale, 0) / others.length) : null;
   const patients = state.survivors.filter((s) => s.conditions.length).length;
+  const feastChk = canFeast(state);
 
   return (
     <div className="panel-body">
@@ -225,6 +229,24 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
                       ))}
                     </select>
                   </label>
+                  {sv.job === "heal" && (
+                    <label className="job-row">
+                      <span>환자</span>
+                      <select
+                        className="input compact"
+                        value={sv.healTarget ?? ""}
+                        onChange={(e) => run({ type: "SET_HEAL_TARGET", survivorId: sv.id, targetId: e.target.value || null }, "치료 대상을 정했습니다.")}
+                      >
+                        <option value="">자동 (가장 심한 환자)</option>
+                        {state.survivors.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.isPlayer ? "나" : p.name}
+                            {p.conditions.length ? ` — ${p.conditions.map((c) => conditionName(c)).join(", ")}` : " (아픈 곳 없음)"}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   {plan && (
                     <p className={`small-text ${plan.blocked ? "warn-text" : ""}`}>
                       {plan.blocked ? plan.blocked : `구간 예상: ${plan.expect}`}
@@ -236,6 +258,40 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
           );
         })}
       </ul>
+
+      {others.length > 0 && (
+        <>
+          <h4 className="section-title">사기 올리기</h4>
+          <div className="btn-row">
+            <button className="btn" disabled={!feastChk.ok} onClick={() => run({ type: "FEAST" }, `특별 배급! 모두 사기 +${WORLD_RULES.feast}`)}>
+              특별 배급 (사기 +{WORLD_RULES.feast})
+            </button>
+            <CostTag bundle={feastCost(state)} have={state.resources} />
+          </div>
+          {!feastChk.ok && <p className="muted small-text">{feastChk.reason}</p>}
+          <p className="muted small-text">
+            정비 시간에 하루 한 번. 낮에는 '행동 → 격려하기'(행동 1, 사기 +{WORLD_RULES.encourage})로도 올릴 수 있습니다. 공동 생활실 식탁·조리대도 사기에 도움이 됩니다.
+          </p>
+        </>
+      )}
+
+      {state.world.expeditions.length > 0 && (
+        <>
+          <h4 className="section-title">원정 중</h4>
+          <ul className="list">
+            {state.world.expeditions.flatMap((e) =>
+              e.members.map((m) => (
+                <li key={m.id} className="list-item static">
+                  <span className="grow">{m.name}</span>
+                  <span className="muted small-text">
+                    {REGION_BY_ID[e.regionId as RegionId].name} · {e.daysLeft}일 뒤 귀환
+                  </span>
+                </li>
+              )),
+            )}
+          </ul>
+        </>
+      )}
 
       <h4 className="section-title">제작 업무 품목</h4>
       <label className="job-row">

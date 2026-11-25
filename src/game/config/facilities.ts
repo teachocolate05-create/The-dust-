@@ -39,6 +39,8 @@ export interface FacilityDef {
   crop?: { cycle: number; yield: number };
   /** 조리 설비: 가동 중이면 식량 소비 25% 절약, 구간마다 사기 +1 (업데이트 3) */
   kitchen?: boolean;
+  /** 방어력 (경비실, 업데이트 4) */
+  defense?: number;
 
   /** 지도에 쓰는 짧은 표시 */
   glyph: string;
@@ -110,6 +112,9 @@ export const FACILITIES: FacilityDef[] = [
   { ...base, id: "stove", name: "조리대", w: 2, h: 1, room: "common", cost: { materials: 10, parts: 4 }, operates: true, decay: 1, power: -1, kitchen: true, glyph: "조리", desc: "따뜻한 식사로 식량을 아껴 먹습니다 (소비 25% 절약), 모두 사기 +1/구간." },
   { ...base, id: "refinery", name: "연료 정제기", w: 2, h: 2, room: "workshop", cost: { materials: 20, parts: 8 }, advanced: true, operates: true, decay: 1, power: -2, consumes: { materials: 3 }, produces: { fuel: 2 }, glyph: "정제", desc: "고급 설비. 구간마다 자재 3으로 연료 2를 자동 생산합니다." },
   { ...base, id: "lathe", name: "부품 가공기", w: 2, h: 2, room: "workshop", cost: { materials: 22, parts: 6 }, advanced: true, operates: true, decay: 1, power: -3, consumes: { materials: 4 }, produces: { parts: 1 }, glyph: "가공", desc: "고급 설비. 구간마다 자재 4로 부품 1을 자동 생산합니다." },
+  // ── 업데이트 4: 외부 세계 ──
+  { ...base, id: "barricade", name: "바리케이드", w: 2, h: 1, room: "guard", cost: { materials: 8 }, defense: 8, glyph: "방벽", desc: "습격 방어력 +8." },
+  { ...base, id: "watch_post", name: "감시 초소", w: 1, h: 1, room: "guard", cost: { materials: 5, parts: 2 }, defense: 5, glyph: "감시", desc: "습격 방어력 +5." },
   // ── 업데이트 2: 생존자 생활 ──
   { ...base, id: "med_bed", name: "진료 침대", w: 2, h: 1, room: "medical", cost: { materials: 8, parts: 2 }, glyph: "진료", desc: "'치료' 업무 성공 확률 +15%." },
   { ...base, id: "med_cabinet", name: "약품 선반", w: 1, h: 1, room: "medical", cost: { materials: 5, parts: 3 }, glyph: "약", desc: "'치료' 업무 성공 확률 +10%." },

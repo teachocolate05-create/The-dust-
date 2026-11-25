@@ -196,7 +196,9 @@ function worstPatient(state: GameState): { sv: Survivor; c: Condition } | null {
 }
 
 export function doHeal(state: GameState, healer: Survivor): { state: GameState; text: string } {
-  const p = worstPatient(state);
+  // 지정한 환자가 있고 아직 아프면 그 사람부터, 아니면 가장 심한 환자
+  const target = healer.healTarget ? state.survivors.find((x) => x.id === healer.healTarget && x.conditions.length) : undefined;
+  const p = target ? { sv: target, c: target.conditions.reduce((a, b) => (b.severity > a.severity ? b : a)) } : worstPatient(state);
   if (!p) return { state, text: "돌볼 환자가 없었다" };
   const [roll, seed] = nextRandom(state.seed);
   let s = { ...state, seed };
@@ -333,7 +335,7 @@ export function processLifeDay(state: GameState, bedsFor: number): { state: Game
       if (e.id === "quarrel" || e.id === "bonding") return people.length >= 2;
       if (e.id === "storyNight") return people.length >= 2;
       if (e.id === "contagion") return s.survivors.some((x) => isSick(x)) && s.survivors.some((x) => !isSick(x));
-      if (e.id === "helping") return s.survivors.some((x) => x.conditions.length) && people.length >= 1;
+      if (e.id === "helping") return s.survivors.some((x) => x.conditions.length) && people.length >= 2;
       return false;
     });
     if (options.length) {

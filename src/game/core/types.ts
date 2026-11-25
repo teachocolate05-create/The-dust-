@@ -18,7 +18,7 @@ export type TileType =
   | "watersource" // 급수원 (지하수 배관)
   | "sealed"; // 봉쇄된 셔터 (구역 개방으로 열림)
 
-export type RoomTypeId = "residence" | "storage" | "power" | "water" | "workshop" | "common" | "medical" | "farm";
+export type RoomTypeId = "residence" | "storage" | "power" | "water" | "workshop" | "common" | "medical" | "farm" | "guard";
 
 export type FacilityTypeId =
   | "cot"
@@ -48,7 +48,9 @@ export type FacilityTypeId =
   | "hydroponics"
   | "stove"
   | "refinery"
-  | "lathe";
+  | "lathe"
+  | "barricade"
+  | "watch_post";
 
 /** 시간 구간. 오전/오후/야간 + 정비 시간 */
 export type Phase = "morning" | "afternoon" | "night" | "maintenance";
@@ -132,8 +134,27 @@ export interface GameState {
   relations: Record<string, number>;
   /** '제작' 업무가 만드는 품목 (업데이트 3) */
   craftTarget: "parts" | "fuel" | "recycle";
+  /** 특별 배급을 한 마지막 날 */
+  feastDay: number;
+  /** 외부 세계 (업데이트 4) */
+  world: WorldState;
   /** 게임 오버 정보. null이면 진행 중 */
   gameOver: { day: number; phase: Phase; reason: string } | null;
+}
+
+export interface WorldState {
+  regions: Record<string, { discovered: boolean; visits: number }>;
+  factions: Record<string, { contacted: boolean; relation: number; lastTradeDay: number }>;
+  expeditions: Expedition[];
+}
+
+export interface Expedition {
+  id: string;
+  regionId: string;
+  /** 원정 중인 생존자 (거점 인원에서 빠진다) */
+  members: Survivor[];
+  daysLeft: number;
+  departedDay: number;
 }
 
 export interface Place {
@@ -164,7 +185,9 @@ export interface Survivor {
   /** 피로 0~100 */
   fatigue: number;
   skills: SkillLevels;
-  job: "rest" | "debris" | "scavenge" | "forage" | "maintain" | "craft" | "heal" | "farm";
+  job: "rest" | "debris" | "scavenge" | "forage" | "maintain" | "craft" | "heal" | "farm" | "guard";
+  /** '치료' 업무일 때 돌볼 사람 (없으면 가장 심한 환자) */
+  healTarget?: string;
   background: string;
   /** 성격·특성 (업데이트 2) */
   traits: TraitId[];

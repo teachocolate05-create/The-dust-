@@ -8,6 +8,7 @@ import { capacity } from "@/game/systems/operation";
 import { canBuildLines, canRemoveLines, computeNets, linePath } from "@/game/systems/network";
 import NetworkPanel from "./NetworkPanel";
 import SurvivorPanel from "./SurvivorPanel";
+import WorldPanel from "./WorldPanel";
 import { gateZoneAt, lockedZoneAt } from "@/game/systems/zones";
 import { EventModal, GameOverModal, TitleScreen } from "./Screens";
 import type { GameEvent, GameState } from "@/game/core/types";
@@ -35,6 +36,7 @@ const TABS: { id: Tab; label: string; planned?: string }[] = [
   { id: "log", label: "기록" },
   { id: "network", label: "기반시설" },
   { id: "survivors", label: "생존자" },
+  { id: "world", label: "지상" },
 ];
 
 export default function Game() {
@@ -434,6 +436,7 @@ export default function Game() {
             {tab === "build" && <BuildPanel {...panelProps} />}
             {tab === "resources" && <ResourcePanel state={state} forecast={forecast} cap={cap} />}
             {tab === "log" && <LogPanel state={state} />}
+            {tab === "world" && <WorldPanel state={state} run={run} />}
             {tab === "survivors" && <SurvivorPanel state={state} run={run} setMode={setMode} ask={ask} />}
             {tab === "network" && <NetworkPanel state={state} sim={forecast.sim} setMode={setMode} setSelection={setSelection} />}
           </div>

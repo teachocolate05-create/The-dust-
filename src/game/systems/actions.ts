@@ -15,6 +15,8 @@ import { SURVIVOR_RULES } from "../config/survivors";
 import { THREAT_RULES } from "../config/events";
 import { LIFE_RULES } from "../config/life";
 import { isInjured } from "./life";
+import { canEncourage, doEncourage, doSurfaceScout } from "./world";
+import { WORLD_RULES } from "../config/world";
 import { clearThreatChance, doClearThreat, doSurvey, maybeDiscoverPlace, nextSurveyTarget, threatInjury } from "./events";
 
 export type ActionTarget =
@@ -122,6 +124,12 @@ export function canDoAction(state: GameState, id: ActionId, target?: ActionTarge
     return { ok: true, cost: {}, preview: `${p.survivor.name}을(를) 데려온다` };
   }
 
+  if (id === "surfaceScout") return { ok: true, cost: {}, preview: `새 지역 발견 확률 ${Math.round(WORLD_RULES.scoutChance * 100)}%${nightNote}` };
+  if (id === "encourage") {
+    const why = canEncourage(state);
+    if (why) return no(why);
+    return { ok: true, cost: {}, preview: `모든 생존자 사기 +${WORLD_RULES.encourage}` };
+  }
   if (id === "survey") {
     const p = nextSurveyTarget(state);
     if (!p) return no("조사할 장소가 없습니다. '주변 탐색'으로 장소를 먼저 찾으세요.");
@@ -181,6 +189,11 @@ export function doAction(state: GameState, id: ActionId, target?: ActionTarget):
     s = found.state;
     seed = s.seed;
     text += found.text;
+  } else if (id === "surfaceScout" || id === "encourage") {
+    const r = id === "surfaceScout" ? doSurfaceScout({ ...s, seed }) : doEncourage({ ...s, seed });
+    s = r.state;
+    seed = s.seed;
+    text = r.text;
   } else if (id === "survey") {
     const r = doSurvey({ ...s, seed }, rate);
     s = r.state;

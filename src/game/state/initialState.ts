@@ -3,9 +3,10 @@ import { parseLayout, STATION_LAYOUT } from "../config/map";
 import { STARTING_RESOURCES } from "../config/resources";
 import { RULES } from "../config/rules";
 import { createPlayer } from "../systems/survivors";
+import { createWorld } from "../systems/world";
 import type { FacilityTypeId, GameState, Rect, Room, RoomTypeId } from "../core/types";
 
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 
 /** 확장 구역 안에 남아 있는 방 (구역을 열고 길을 뚫어야 쓸 수 있다) */
 export const ZONE_PRESET_ROOMS: PresetRoom[] = [
@@ -87,6 +88,8 @@ export function createInitialState(seed: number = Date.now() % 2147483647): Game
     zones: [],
     relations: {},
     craftTarget: "parts",
+    feastDay: 0,
+    world: createWorld(),
     log: [
       {
         day: 1,

@@ -8,6 +8,7 @@ import { createPlayer } from "../systems/survivors";
 import { JOB_BY_ID } from "../config/survivors";
 import { TRAIT_BY_ID } from "../config/life";
 import { rollTraits } from "../systems/life";
+import { createWorld } from "../systems/world";
 
 // 브라우저 LocalStorage 저장.
 // 불러온 데이터는 반드시 검증한다. 손상된 데이터는 사용하지 않는다.
@@ -59,6 +60,14 @@ export function validateSave(data: any): data is GameState {
   if (!data.events || !isInt(data.events.serial) || !Array.isArray(data.events.list)) return false;
   if (!data.relations || typeof data.relations !== "object" || !Object.values(data.relations).every((v) => typeof v === "number")) return false;
   if (!["parts", "fuel", "recycle"].includes(data.craftTarget)) return false;
+  if (!isInt(data.feastDay)) return false;
+  const w = data.world;
+  if (!w || typeof w.regions !== "object" || typeof w.factions !== "object" || !Array.isArray(w.expeditions)) return false;
+  if (!Object.values(w.regions).every((r: any) => typeof r?.discovered === "boolean" && isInt(r?.visits))) return false;
+  if (!Object.values(w.factions).every((f: any) => typeof f?.contacted === "boolean" && typeof f?.relation === "number" && isInt(f?.lastTradeDay)))
+    return false;
+  if (!w.expeditions.every((e: any) => e && typeof e.regionId === "string" && isInt(e.daysLeft) && Array.isArray(e.members) && e.members.every(isSurvivor)))
+    return false;
   if (!Array.isArray(data.zones) || !data.zones.every((z: any) => typeof z === "string")) return false;
   if (data.gameOver !== null && (typeof data.gameOver?.reason !== "string" || !isInt(data.gameOver?.day))) return false;
   return true;
@@ -147,6 +156,8 @@ export function migrateSave(data: any): any {
   }
   // 업데이트 2 → 업데이트 3: 제작 품목 지정
   if (data && data.version === 8) data = { ...data, version: 9, craftTarget: "parts" };
+  // 업데이트 3 → 업데이트 4: 외부 세계, 특별 배급
+  if (data && data.version === 9) data = { ...data, version: 10, feastDay: 0, world: createWorld() };
   return data;
 }
 

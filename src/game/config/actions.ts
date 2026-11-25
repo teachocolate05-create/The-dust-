@@ -11,7 +11,9 @@ export type ActionId =
   | "rescue"
   | "repair"
   | "craft"
-  | "clearDebris";
+  | "clearDebris"
+  | "surfaceScout"
+  | "encourage";
 
 export type ActionCategory = "탐사" | "생존" | "구조" | "작업";
 
@@ -74,6 +76,22 @@ export const ACTIONS: ActionDef[] = [
     category: "생존",
     desc: "거점 주변에 나타난 위협을 몰아낸다. 실패하면 다칠 수 있다.",
     outside: true,
+    implemented: true,
+  },
+  {
+    id: "surfaceScout",
+    name: "지상 탐사",
+    category: "탐사",
+    desc: "지상으로 올라가 멀리 있는 지역을 살핀다. 새 지역을 찾으면 원정을 보낼 수 있다.",
+    outside: true,
+    implemented: true,
+  },
+  {
+    id: "encourage",
+    name: "격려하기",
+    category: "생존",
+    desc: "생존자들과 이야기하며 힘을 북돋는다. 모든 생존자 사기 +8.",
+    outside: false,
     implemented: true,
   },
   {

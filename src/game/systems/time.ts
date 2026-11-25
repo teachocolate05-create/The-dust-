@@ -11,6 +11,7 @@ import { atRisk, capacity, simulatePeriod, type PeriodSim } from "./operation";
 import { isDayPhase, nextPhase, PHASE_NAMES } from "./phase";
 import { rollEvents } from "./events";
 import { processLifeDay, processLifePeriod } from "./life";
+import { processExpeditions, processRaid } from "./world";
 import { bedCount, expirePending, planWork, population, processNeeds, processSleep, processWork, type WorkPlan } from "./survivors";
 import { SURVIVOR_RULES } from "../config/survivors";
 
@@ -212,8 +213,13 @@ export function startNextDay(state: GameState): GameState {
   // 업데이트 2: 회복·악화, 침상 없는 밤, 떠남, 생존자 간 사건
   const life = processLifeDay(s, bedCount(s));
   s = life.state;
+  // 업데이트 4: 원정대 귀환, 약탈단 습격
+  const exp = processExpeditions(s);
+  s = exp.state;
+  const raid = processRaid(s);
+  s = raid.state;
   s = { ...s, day: state.day + 1, phase: "morning", actionsLeft: RULES.actionsPerPhase };
   s = expirePending(s);
-  s = { ...s, events: { serial: s.events.serial + 1, list: life.events } };
+  s = { ...s, events: { serial: s.events.serial + 1, list: [...exp.events, ...raid.events, ...life.events] } };
   return addLog(s, `${s.day}일차 아침이 밝았다. (인원 ${population(s)}명 · 침상 ${bedCount(s)}개)`);
 }

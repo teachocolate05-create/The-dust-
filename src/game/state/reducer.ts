@@ -7,6 +7,8 @@ import * as operation from "../systems/operation";
 import * as network from "../systems/network";
 import { checkGameOver } from "../systems/events";
 import { openZone } from "../systems/zones";
+import * as world from "../systems/world";
+import type { FactionId, RegionId } from "../config/world";
 import * as survivors from "../systems/survivors";
 import type { JobId } from "../config/survivors";
 import { createInitialState } from "./initialState";
@@ -37,7 +39,13 @@ export type GameAction =
   | { type: "DISMISS_SURVIVOR"; index: number }
   | { type: "MARK_DEBRIS"; points: Point[]; on: boolean }
   | { type: "OPEN_ZONE"; zoneId: string }
-  | { type: "SET_CRAFT_TARGET"; target: GameState["craftTarget"] };
+  | { type: "SET_CRAFT_TARGET"; target: GameState["craftTarget"] }
+  | { type: "SET_HEAL_TARGET"; survivorId: string; targetId: string | null }
+  | { type: "SEND_EXPEDITION"; regionId: RegionId; memberIds: string[] }
+  | { type: "TRADE"; factionId: FactionId; index: number }
+  | { type: "GIFT"; factionId: FactionId }
+  | { type: "CLINIC"; survivorId: string }
+  | { type: "FEAST" };
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   // 게임 오버 후에는 새 게임·불러오기만 가능
@@ -96,6 +104,21 @@ function applyAction(state: GameState, action: GameAction): GameState {
       return survivors.setDebrisMarks(state, action.points, action.on);
     case "OPEN_ZONE":
       return openZone(state, action.zoneId);
+    case "SET_HEAL_TARGET":
+      return {
+        ...state,
+        survivors: state.survivors.map((x) => (x.id === action.survivorId ? { ...x, healTarget: action.targetId ?? undefined } : x)),
+      };
+    case "SEND_EXPEDITION":
+      return world.sendExpedition(state, action.regionId, action.memberIds);
+    case "TRADE":
+      return world.trade(state, action.factionId, action.index);
+    case "GIFT":
+      return world.gift(state, action.factionId);
+    case "CLINIC":
+      return world.clinic(state, action.survivorId);
+    case "FEAST":
+      return world.feast(state);
     case "SET_CRAFT_TARGET":
       return state.craftTarget === action.target ? state : { ...state, craftTarget: action.target };
   }

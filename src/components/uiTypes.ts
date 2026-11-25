@@ -21,7 +21,7 @@ export type Mode =
 /** 지도에 그릴 선 상태: ok = 정상, dead = 공급원 없음 */
 export type LineView = Record<NetKind, Map<string, "ok" | "dead">>;
 
-export type Tab = "base" | "actions" | "build" | "resources" | "log" | "survivors" | "network";
+export type Tab = "base" | "actions" | "build" | "resources" | "log" | "survivors" | "network" | "world";
 
 /** 확인 창 요청 (브라우저 기본 confirm 대신 게임 안 대화상자 사용) */
 export type AskFn = (text: string, onYes: () => void, yesLabel?: string) => void;
