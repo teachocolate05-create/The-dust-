@@ -1552,3 +1552,34 @@ b {
   background: #2f5a2f;
   color: #d6f5d6;
 }
+
+/* ───────── 업데이트 2: 생존자 생활 ───────── */
+.trait {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #3a2f45;
+  color: #e2d3f0;
+  border: 1px solid #574468;
+  cursor: help;
+}
+.cond {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+.cond-injury {
+  background: #5a1f1a;
+  color: #ffd2c8;
+}
+.cond-illness {
+  background: #2d4a2a;
+  color: #cfeec4;
+}
+.rel-friend {
+  color: var(--ok);
+}
+.rel-rival {
+  color: #ff9a8a;
+}

@@ -11,6 +11,7 @@ import type { Check, GameState, LogEntry, PendingSurvivor, Point, ResourceBundle
 import { computeAccess } from "./access";
 import { addCapped, hasWorking } from "./operation";
 import { canModifyBase } from "./phase";
+import { doHeal, healChance, lifeBlockReason, lifeWorkMultiplier, rollTraits, workFatigueExtra } from "./life";
 import { threatInjury } from "./events";
 import { THREAT_RULES } from "../config/events";
 
@@ -27,6 +28,9 @@ export function createPlayer(): Survivor {
     skills: { tech: 2, medic: 1, gather: 2, farm: 1, manage: 2 },
     job: "rest",
     background: "이 역을 거점으로 삼기로 한 사람. 행동은 직접 한다.",
+    traits: [],
+    conditions: [],
+    morale: 100,
   };
 }
 
@@ -50,7 +54,8 @@ export function skillFactor(s: Survivor, job: JobId): number {
   const level = skill ? s.skills[skill] : 1;
   let f = R.skillBase + R.skillStep * level;
   if (s.fatigue >= R.tiredAt) f *= 0.5;
-  return f;
+  // 업데이트 2: 특성·부상·질병·사기
+  return f * lifeWorkMultiplier(s, job);
 }
 
 export type SurvivorStatus = "player" | "working" | "resting" | "exhausted" | "critical";
@@ -94,7 +99,11 @@ export function generateSurvivor(seed: number, id: string, usedNames: string[]):
   [health, s] = randomInt(s, 45, 80);
   let fatigue: number;
   [fatigue, s] = randomInt(s, 30, 60);
-  return [{ id, name, age, isPlayer: false, health, fatigue, skills, job: "rest", background: bg.text }, s];
+  let traits: Survivor["traits"];
+  [traits, s] = rollTraits(s);
+  let morale: number;
+  [morale, s] = randomInt(s, 45, 65);
+  return [{ id, name, age, isPlayer: false, health, fatigue, skills, job: "rest", background: bg.text, traits, conditions: [], morale }, s];
 }
 
 // ───────────── 수용 / 업무 배정 ─────────────
@@ -201,6 +210,11 @@ export function planWork(state: GameState): WorkPlan[] {
         plan.blocked = "탈진해서 일할 수 없습니다 (강제 휴식)";
         return plan;
       }
+      const lifeBlock = lifeBlockReason(s, s.job);
+      if (lifeBlock) {
+        plan.blocked = lifeBlock;
+        return plan;
+      }
       const f = rate(state, s, s.job);
       if (s.job === "rest") plan.expect = `피로 -${R.restRecovery}`;
       else if (job.yields)
@@ -212,6 +226,10 @@ export function planWork(state: GameState): WorkPlan[] {
         plan.expect = `지정 잔해 ${n}칸`;
         if (state.debrisMarks.length === 0) plan.blocked = "정리할 잔해가 지정되지 않았습니다 (행동 탭 → 잔해 정리 → 정리 지정)";
         else if (reachableMarks(state).length === 0) plan.blocked = "지정한 잔해 중 통로와 맞닿은 칸이 없습니다";
+      } else if (s.job === "heal") {
+        const anyone = state.survivors.some((x) => x.conditions.length);
+        plan.expect = `치료 성공 확률 ${Math.round(healChance(state, s) * 100)}%`;
+        if (!anyone) plan.expect += " (지금은 환자 없음)";
       } else if (s.job === "maintain") plan.expect = `기계 내구도 +${Math.round(R.maintainBase + R.maintainPerSkill * s.skills.tech * (s.fatigue >= R.tiredAt ? 0.5 : 1))}`;
       else if (s.job === "craft") {
         plan.expect = `${bundleText(R.craftInput)} → ${bundleText(R.craftOutput)}`;
@@ -229,6 +247,10 @@ export function processWork(state: GameState): GameState {
   let seed = s.seed;
   for (const sv of state.survivors) {
     if (sv.isPlayer || sv.job === "rest" || sv.fatigue >= 100) continue;
+    if (lifeBlockReason(sv, sv.job)) {
+      s = log(s, `${sv.name} — ${lifeBlockReason(sv, sv.job)}`, "warn");
+      continue;
+    }
     const job = JOB_BY_ID[sv.job];
     const f = rate(s, sv, sv.job);
     let gained: ResourceBundle = {};
@@ -288,6 +310,11 @@ export function processWork(state: GameState): GameState {
         };
         text = `${tg.name} 내구도 +${amount}`;
       } else text = "손볼 기계가 없었다";
+    } else if (sv.job === "heal") {
+      const r = doHeal({ ...s, seed }, sv);
+      s = r.state;
+      seed = s.seed;
+      text = r.text;
     } else if (sv.job === "craft") {
       if (hasWorking(s, "workbench") && canAfford(s.resources, R.craftInput)) {
         const r = { ...s.resources };
@@ -320,7 +347,7 @@ export function processNeeds(state: GameState, shortage: ResourceBundle): GameSt
   for (const sv of state.survivors) {
     let { health, fatigue } = sv;
     const resting = !sv.isPlayer && (sv.job === "rest" || sv.fatigue >= 100);
-    if (!sv.isPlayer) fatigue = resting ? fatigue - R.restRecovery - restBonus : fatigue + R.workFatigue;
+    if (!sv.isPlayer) fatigue = resting ? fatigue - R.restRecovery - restBonus : fatigue + R.workFatigue + workFatigueExtra(sv);
     if (sv.fatigue >= 100) health -= R.exhaustedHealthLoss;
     if (starving) health -= R.starvationHealthLoss * starving;
     else if (resting) health += R.restHealthGain;

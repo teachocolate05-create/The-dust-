@@ -6,6 +6,8 @@ import { SAVE_VERSION, ZONE_PRESET_ROOMS } from "./initialState";
 import { parseLayout, STATION_LAYOUT } from "../config/map";
 import { createPlayer } from "../systems/survivors";
 import { JOB_BY_ID } from "../config/survivors";
+import { TRAIT_BY_ID } from "../config/life";
+import { rollTraits } from "../systems/life";
 
 // 브라우저 LocalStorage 저장.
 // 불러온 데이터는 반드시 검증한다. 손상된 데이터는 사용하지 않는다.
@@ -54,6 +56,7 @@ export function validateSave(data: any): data is GameState {
   if (!Array.isArray(data.places) || !data.places.every((p: any) => p && typeof p.id === "string" && typeof p.name === "string" && typeof p.surveyed === "boolean"))
     return false;
   if (!data.events || !isInt(data.events.serial) || !Array.isArray(data.events.list)) return false;
+  if (!data.relations || typeof data.relations !== "object" || !Object.values(data.relations).every((v) => typeof v === "number")) return false;
   if (!Array.isArray(data.zones) || !data.zones.every((z: any) => typeof z === "string")) return false;
   if (data.gameOver !== null && (typeof data.gameOver?.reason !== "string" || !isInt(data.gameOver?.day))) return false;
   return true;
@@ -68,7 +71,12 @@ function isSurvivor(sv: any): boolean {
     typeof sv.fatigue === "number" &&
     !!JOB_BY_ID[sv.job as keyof typeof JOB_BY_ID] &&
     sv.skills &&
-    ["tech", "medic", "gather", "farm", "manage"].every((k) => typeof sv.skills[k] === "number")
+    ["tech", "medic", "gather", "farm", "manage"].every((k) => typeof sv.skills[k] === "number") &&
+    Array.isArray(sv.traits) &&
+    sv.traits.every((t: any) => !!TRAIT_BY_ID[t as keyof typeof TRAIT_BY_ID]) &&
+    Array.isArray(sv.conditions) &&
+    sv.conditions.every((c: any) => (c?.kind === "injury" || c?.kind === "illness") && isInt(c.severity)) &&
+    typeof sv.morale === "number"
   );
 }
 
@@ -117,6 +125,23 @@ export function migrateSave(data: any): any {
       })),
     }));
     data = { ...data, version: 7, map, rooms: [...data.rooms, ...extra], nextId, zones: [] };
+  }
+  // 업데이트 1 → 업데이트 2: 특성·부상·질병·사기·관계
+  if (data && data.version === 7 && Array.isArray(data.survivors)) {
+    let seed = isInt(data.seed) ? data.seed : 1;
+    const upgrade = (sv: any) => {
+      let traits: string[] = [];
+      if (!sv.isPlayer) [traits, seed] = rollTraits(seed);
+      return { ...sv, traits, conditions: [], morale: sv.isPlayer ? 100 : 60 };
+    };
+    data = {
+      ...data,
+      version: 8,
+      survivors: data.survivors.map(upgrade),
+      pending: Array.isArray(data.pending) ? data.pending.map((p: any) => ({ ...p, survivor: upgrade(p.survivor) })) : data.pending,
+      relations: {},
+      seed,
+    };
   }
   return data;
 }

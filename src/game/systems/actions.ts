@@ -13,6 +13,8 @@ import { isDayPhase, PHASE_NAMES } from "./phase";
 import { doRescue, doSearch, rescueBlockReason, searchBlockReason } from "./survivors";
 import { SURVIVOR_RULES } from "../config/survivors";
 import { THREAT_RULES } from "../config/events";
+import { LIFE_RULES } from "../config/life";
+import { isInjured } from "./life";
 import { clearThreatChance, doClearThreat, doSurvey, maybeDiscoverPlace, nextSurveyTarget, threatInjury } from "./events";
 
 export type ActionTarget =
@@ -60,7 +62,9 @@ function debrisReachable(state: GameState, tiles: Point[]): boolean {
 /** 야간 외부 활동이면 효율 감소 */
 function yieldRate(state: GameState, id: ActionId): number {
   if (!ACTION_BY_ID[id].outside) return 1;
-  return (state.phase === "night" ? ACTION_RULES.nightOutsideRate : 1) * (state.threat ? THREAT_RULES.outsideYieldRate : 1);
+  const player = state.survivors.find((x) => x.isPlayer);
+  const injured = player && isInjured(player) ? LIFE_RULES.playerInjuredYield : 1;
+  return (state.phase === "night" ? ACTION_RULES.nightOutsideRate : 1) * (state.threat ? THREAT_RULES.outsideYieldRate : 1) * injured;
 }
 
 export function canDoAction(state: GameState, id: ActionId, target?: ActionTarget): ActionCheck {

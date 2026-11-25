@@ -11,6 +11,7 @@ import type { GameEvent, GameState, LogEntry, ResourceBundle, ResourceId } from 
 import { computeAccess } from "./access";
 import { addCapped } from "./operation";
 import { generateSurvivor } from "./survivors";
+import { addCondition, hurtMultiplier } from "./life";
 
 function log(state: GameState, text: string, kind: LogEntry["kind"] = "event"): GameState {
   const entry: LogEntry = { day: state.day, phase: state.phase, text, kind };
@@ -52,6 +53,8 @@ function possible(state: GameState, id: EventId): boolean {
       return true;
     case "threat":
       return !state.threat;
+    case "outbreak":
+      return state.survivors.some((x) => !x.conditions.some((c) => c.kind === "illness"));
   }
 }
 
@@ -119,8 +122,13 @@ function apply(state: GameState, id: EventId): { state: GameState; text: string 
       let i: number;
       [i, seed] = randomInt(seed, 0, pool.length - 1);
       const who = pool[i];
-      s = hurt(s, who.id, E.injuryDamage);
-      text = `${who.name}이(가) 작업 중 무너진 철판에 다쳤다. 건강 -${E.injuryDamage}.`;
+      const dmg = Math.round(E.injuryDamage * hurtMultiplier(who));
+      s = hurt(s, who.id, dmg);
+      let sev: number;
+      [sev, seed] = randomInt(seed, 1, 2);
+      const r = addCondition(s, who.id, "injury", sev);
+      s = r.state;
+      text = `${who.isPlayer ? "내가" : who.name + "이(가)"} 작업 중 무너진 철판에 다쳤다. 건강 -${dmg}. ${r.text}`;
       break;
     }
     case "badAir": {
@@ -150,6 +158,15 @@ function apply(state: GameState, id: EventId): { state: GameState; text: string 
       const capped = addCapped(s, gained);
       s = { ...s, resources: capped.resources };
       text = `무너진 벽 틈에서 예전 보급 상자를 찾았다. ${bundleText(gained)}.${Object.keys(capped.lost).length ? ` (저장 공간 부족으로 ${bundleText(capped.lost)} 버림)` : ""}`;
+      break;
+    }
+    case "outbreak": {
+      const healthy = s.survivors.filter((x) => !x.conditions.some((c) => c.kind === "illness"));
+      let i: number;
+      [i, seed] = randomInt(seed, 0, healthy.length - 1);
+      const r = addCondition(s, healthy[i].id, "illness", 1);
+      s = r.state;
+      text = `눅눅한 공기 속에 기침 소리가 들린다. ${r.text} 쉬게 하거나 '치료'를 맡기자.`;
       break;
     }
     case "threat": {
@@ -192,9 +209,12 @@ export function threatInjury(state: GameState, survivorId: string, chance: numbe
   const [roll, seed] = nextRandom(state.seed);
   let s = { ...state, seed };
   if (roll >= chance) return { state: s, text: "" };
-  s = hurt(s, survivorId, damage);
+  const who0 = s.survivors.find((x) => x.id === survivorId)!;
+  const dmg = Math.round(damage * hurtMultiplier(who0));
+  s = hurt(s, survivorId, dmg);
+  s = addCondition(s, survivorId, "injury", 1).state;
   const who = s.survivors.find((x) => x.id === survivorId)!;
-  return { state: s, text: ` ${state.threat.name}에게 습격당해 ${who.isPlayer ? "" : who.name + "이(가) "}다쳤다 (건강 -${damage}).` };
+  return { state: s, text: ` ${state.threat.name}에게 습격당해 ${who.isPlayer ? "" : who.name + "이(가) "}다쳤다 (건강 -${dmg}, 부상).` };
 }
 
 export function clearThreatChance(state: GameState): number {

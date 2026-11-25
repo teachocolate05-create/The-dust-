@@ -18,7 +18,7 @@ export type TileType =
   | "watersource" // 급수원 (지하수 배관)
   | "sealed"; // 봉쇄된 셔터 (구역 개방으로 열림)
 
-export type RoomTypeId = "residence" | "storage" | "power" | "water" | "workshop" | "common";
+export type RoomTypeId = "residence" | "storage" | "power" | "water" | "workshop" | "common" | "medical";
 
 export type FacilityTypeId =
   | "cot"
@@ -40,7 +40,9 @@ export type FacilityTypeId =
   | "pantry"
   | "big_tank"
   | "hi_gen"
-  | "big_filter";
+  | "big_filter"
+  | "med_bed"
+  | "med_cabinet";
 
 /** 시간 구간. 오전/오후/야간 + 정비 시간 */
 export type Phase = "morning" | "afternoon" | "night" | "maintenance";
@@ -118,6 +120,8 @@ export interface GameState {
   events: { serial: number; list: GameEvent[] };
   /** 개방한 확장 구역 id */
   zones: string[];
+  /** 생존자 사이 관계 점수 (-100~100). 키는 두 id를 정렬해 "a|b" */
+  relations: Record<string, number>;
   /** 게임 오버 정보. null이면 진행 중 */
   gameOver: { day: number; phase: Phase; reason: string } | null;
 }
@@ -150,8 +154,22 @@ export interface Survivor {
   /** 피로 0~100 */
   fatigue: number;
   skills: SkillLevels;
-  job: "rest" | "debris" | "scavenge" | "forage" | "maintain" | "craft";
+  job: "rest" | "debris" | "scavenge" | "forage" | "maintain" | "craft" | "heal";
   background: string;
+  /** 성격·특성 (업데이트 2) */
+  traits: TraitId[];
+  /** 부상·질병 (업데이트 2) */
+  conditions: Condition[];
+  /** 사기 0~100 (업데이트 2) */
+  morale: number;
+}
+
+export type TraitId = "hardworking" | "lazy" | "sturdy" | "frail" | "optimist" | "pessimist" | "social" | "grumpy" | "handy" | "scout";
+
+export interface Condition {
+  kind: "injury" | "illness";
+  /** 심각도 1~3 */
+  severity: number;
 }
 
 export interface PendingSurvivor {

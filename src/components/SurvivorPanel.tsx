@@ -7,6 +7,8 @@ import { canModifyBase } from "@/game/systems/phase";
 import { bedCount, canAccept, planWork, population, STATUS_TEXT, survivorStatus } from "@/game/systems/survivors";
 import type { GameAction } from "@/game/state/reducer";
 import type { AskFn, Mode } from "./uiTypes";
+import { LIFE_RULES, TRAIT_BY_ID } from "@/game/config/life";
+import { closest, conditionName, moraleLabel } from "@/game/systems/life";
 
 interface Props {
   state: GameState;
@@ -30,6 +32,32 @@ function Bar({ label, value, invert }: { label: string; value: number; invert?: 
   );
 }
 
+function Traits({ sv }: { sv: Survivor }) {
+  if (!sv.traits.length) return null;
+  return (
+    <div className="skill-row">
+      {sv.traits.map((t) => (
+        <span key={t} className="trait" title={TRAIT_BY_ID[t].desc}>
+          {TRAIT_BY_ID[t].name}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function Conditions({ sv }: { sv: Survivor }) {
+  if (!sv.conditions.length) return null;
+  return (
+    <div className="skill-row">
+      {sv.conditions.map((c) => (
+        <span key={c.kind} className={`cond cond-${c.kind}`} title={c.kind === "injury" ? "부상: 외부 일 불가, 효율 절반" : "질병: 효율 절반, 구간마다 건강 감소"}>
+          {c.kind === "injury" ? "부상" : "질병"} · {conditionName(c)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function Skills({ sv }: { sv: Survivor }) {
   return (
     <div className="skill-row">
@@ -48,6 +76,9 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
   const plans = Object.fromEntries(planWork(state).map((p) => [p.survivorId, p]));
   const maint = canModifyBase(state);
   const hasDebrisWorker = state.survivors.some((s) => s.job === "debris");
+  const others = state.survivors.filter((s) => !s.isPlayer);
+  const avgMorale = others.length ? Math.round(others.reduce((n, s) => n + s.morale, 0) / others.length) : null;
+  const patients = state.survivors.filter((s) => s.conditions.length).length;
 
   return (
     <div className="panel-body">
@@ -61,9 +92,9 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
           <span className="stat-val">{beds}</span>
           <span className="stat-label">침상</span>
         </div>
-        <div className="stat">
-          <span className="stat-val">{pop}</span>
-          <span className="stat-label">구간당 식량·식수</span>
+        <div className={`stat ${avgMorale !== null && avgMorale < LIFE_RULES.lowMorale ? "stat-warn" : ""}`}>
+          <span className="stat-val">{avgMorale ?? "—"}</span>
+          <span className="stat-label">평균 사기</span>
         </div>
       </div>
       <p className="muted small-text">
@@ -88,6 +119,7 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
                     </span>
                   </div>
                   <p className="small-text">{p.survivor.background}</p>
+                  <Traits sv={p.survivor} />
                   <Bar label="건강" value={p.survivor.health} />
                   <Skills sv={p.survivor} />
                   {p.stage === "found" ? (
@@ -116,6 +148,11 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
         </>
       )}
 
+      {patients > 0 && (
+        <div className="alert warn">
+          부상·질병 {patients}명. 쉬게 하면 대체로 하루 사이 낫고, '치료' 업무를 맡기면 더 빨리 낫습니다. 의료실(진료 침대·약품 선반)이 있으면 치료가 잘 됩니다.
+        </div>
+      )}
       <h4 className="section-title">거점 인원</h4>
       <ul className="sv-list">
         {state.survivors.map((sv) => {
@@ -130,8 +167,25 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
                 <span className={`status-pill sv-${st}`}>{STATUS_TEXT[st]}</span>
               </div>
               <p className="small-text muted">{sv.background}</p>
+              <Traits sv={sv} />
+              <Conditions sv={sv} />
               <Bar label="건강" value={sv.health} />
               <Bar label="피로" value={sv.fatigue} invert />
+              {!sv.isPlayer && <Bar label="사기" value={sv.morale} />}
+              {!sv.isPlayer && (
+                <p className="small-text muted">
+                  {moraleLabel(sv.morale)}
+                  {(() => {
+                    const { friend, rival } = closest(state, sv.id);
+                    return (
+                      <>
+                        {friend && <span className="rel rel-friend"> · 친구: {friend.name}</span>}
+                        {rival && <span className="rel rel-rival"> · 앙숙: {rival.name}</span>}
+                      </>
+                    );
+                  })()}
+                </p>
+              )}
               <Skills sv={sv} />
               {sv.isPlayer ? (
                 <p className="muted small-text">행동 1회마다 피로 +{SURVIVOR_RULES.actionFatigue}. 피로 100이면 행동할 수 없습니다.</p>
@@ -176,7 +230,10 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
           지정 해제
         </button>
       </div>
-      <p className="muted small-text">의료·농업·관리 능력은 의료실·농업실 등과 함께 이후 업데이트에서 쓰입니다.</p>
+      <p className="muted small-text">
+        사기: 쉬면 오르고, 일하거나 굶거나 아프면 떨어집니다. 30 미만이면 효율이 떨어지고, 15 미만이면 밤사이 떠날 수 있습니다. 같은 일을 하는 사람끼리 친해지고, 친구가 있으면 사기가 오릅니다.
+      </p>
+      <p className="muted small-text">농업·관리 능력은 이후 업데이트(농업실 등)에서 쓰입니다.</p>
     </div>
   );
 }

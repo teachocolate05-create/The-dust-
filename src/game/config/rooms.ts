@@ -18,6 +18,7 @@ export const ROOM_TYPES: RoomTypeDef[] = [
   { id: "power", name: "발전실", minShort: 3, minLong: 3, color: "#b9853a", desc: "발전기를 설치해 전력을 생산합니다." },
   { id: "water", name: "정수실", minShort: 2, minLong: 3, color: "#4f8a9a", desc: "급수원에서 끌어온 물을 정수합니다." },
   { id: "workshop", name: "작업실", minShort: 2, minLong: 3, color: "#8a6a8f", desc: "물품 제작과 수리 작업을 합니다." },
+  { id: "medical", name: "의료실", minShort: 2, minLong: 3, color: "#c0c8d0", desc: "다치거나 아픈 사람을 치료합니다. '치료' 업무와 함께 씁니다." },
   { id: "common", name: "공동 생활실", minShort: 3, minLong: 3, color: "#b0705a", desc: "함께 밥을 먹고 쉬는 공간. 쉬는 생존자가 더 빨리 회복합니다." },
 ];
 

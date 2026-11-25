@@ -5,7 +5,7 @@ import { RULES } from "../config/rules";
 import { createPlayer } from "../systems/survivors";
 import type { FacilityTypeId, GameState, Rect, Room, RoomTypeId } from "../core/types";
 
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 /** 확장 구역 안에 남아 있는 방 (구역을 열고 길을 뚫어야 쓸 수 있다) */
 export const ZONE_PRESET_ROOMS: PresetRoom[] = [
@@ -85,6 +85,7 @@ export function createInitialState(seed: number = Date.now() % 2147483647): Game
     events: { serial: 0, list: [] },
     gameOver: null,
     zones: [],
+    relations: {},
     log: [
       {
         day: 1,

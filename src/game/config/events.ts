@@ -9,7 +9,8 @@ export type EventId =
   | "badAir"
   | "survivorFound"
   | "resourceCache"
-  | "threat";
+  | "threat"
+  | "outbreak";
 
 export interface EventDef {
   id: EventId;
@@ -28,6 +29,7 @@ export const EVENTS: EventDef[] = [
   { id: "survivorFound", title: "외부 생존자 발견", weight: 7, tone: "good" },
   { id: "resourceCache", title: "물자 발견", weight: 9, tone: "good" },
   { id: "threat", title: "위협 출현", weight: 7, tone: "bad" },
+  { id: "outbreak", title: "질병 발생", weight: 6, tone: "bad" },
 ];
 
 export const EVENT_RULES = {

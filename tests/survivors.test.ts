@@ -11,6 +11,9 @@ const worker = (over: Partial<Survivor> = {}): Survivor => ({
   ...generateSurvivor(5, "w1", [])[0],
   health: 80,
   fatigue: 20,
+  traits: [],
+  conditions: [],
+  morale: 60,
   ...over,
 });
 const withWorker = (s: GameState, over: Partial<Survivor> = {}): GameState => ({ ...s, survivors: [...s.survivors, worker(over)] });

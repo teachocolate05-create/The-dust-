@@ -99,6 +99,9 @@ export const FACILITIES: FacilityDef[] = [
   { ...base, id: "big_tank", name: "대형 물탱크", w: 3, h: 2, room: "water", cost: { materials: 20, parts: 4 }, advanced: true, storage: { water: 50 }, glyph: "대형탱크", desc: "고급 설비. 식수를 대량으로 저장합니다." },
   { ...base, id: "hi_gen", name: "고효율 발전기", w: 3, h: 2, room: "power", cost: { materials: 30, parts: 15 }, advanced: true, operates: true, decay: 1, power: 20, consumes: { fuel: 2 }, glyph: "고효율", desc: "고급 설비. 같은 연료로 훨씬 많은 전력을 만들고 덜 닳습니다." },
   { ...base, id: "big_filter", name: "대형 정수기", w: 3, h: 2, room: "water", cost: { materials: 25, parts: 10 }, advanced: true, operates: true, decay: 1, power: -3, produces: { water: 8 }, glyph: "대형정수", desc: "고급 설비. 급수원 원수 8을 모두 정수합니다." },
+  // ── 업데이트 2: 생존자 생활 ──
+  { ...base, id: "med_bed", name: "진료 침대", w: 2, h: 1, room: "medical", cost: { materials: 8, parts: 2 }, glyph: "진료", desc: "'치료' 업무 성공 확률 +15%." },
+  { ...base, id: "med_cabinet", name: "약품 선반", w: 1, h: 1, room: "medical", cost: { materials: 5, parts: 3 }, glyph: "약", desc: "'치료' 업무 성공 확률 +10%." },
   { ...base, id: "toolrack", name: "공구함", w: 1, h: 1, room: "workshop", cost: { materials: 4, parts: 1 }, glyph: "공구", desc: "있으면 '직접 수리' 행동의 회복량이 늘어납니다." },
 ];
 

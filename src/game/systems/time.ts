@@ -10,6 +10,7 @@ import type { GameState, LogEntry, ResourceBundle, ResourceId } from "../core/ty
 import { atRisk, capacity, simulatePeriod, type PeriodSim } from "./operation";
 import { isDayPhase, nextPhase, PHASE_NAMES } from "./phase";
 import { rollEvents } from "./events";
+import { processLifeDay, processLifePeriod } from "./life";
 import { bedCount, expirePending, planWork, population, processNeeds, processSleep, processWork, type WorkPlan } from "./survivors";
 import { SURVIVOR_RULES } from "../config/survivors";
 
@@ -152,6 +153,7 @@ export function endPhase(state: GameState): GameState {
   // 2) 생존자 작업과 피로·건강
   s = processWork(s);
   s = processNeeds(s, f.shortage);
+  s = processLifePeriod(s, Object.keys(f.shortage).length > 0);
 
   // 3) 내구도 감소와 고장
   let seed = s.seed;
@@ -195,7 +197,11 @@ export function endPhase(state: GameState): GameState {
 export function startNextDay(state: GameState): GameState {
   if (state.phase !== "maintenance") return state;
   let s: GameState = processSleep(state);
+  // 업데이트 2: 회복·악화, 침상 없는 밤, 떠남, 생존자 간 사건
+  const life = processLifeDay(s, bedCount(s));
+  s = life.state;
   s = { ...s, day: state.day + 1, phase: "morning", actionsLeft: RULES.actionsPerPhase };
   s = expirePending(s);
+  s = { ...s, events: { serial: s.events.serial + 1, list: life.events } };
   return addLog(s, `${s.day}일차 아침이 밝았다. (인원 ${population(s)}명 · 침상 ${bedCount(s)}개)`);
 }
