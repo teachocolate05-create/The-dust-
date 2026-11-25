@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState } from "@/game/state/initialState";
+import { createTestState } from "@/game/state/initialState";
 import { gameReducer } from "@/game/state/reducer";
 import { canDoAction, clearableDebris } from "@/game/systems/actions";
 import { canCreateRoom } from "@/game/systems/space";
@@ -7,7 +7,7 @@ import { forecastPhaseEnd } from "@/game/systems/time";
 import type { GameState } from "@/game/core/types";
 import { opened } from "./helpers";
 
-const start = () => createInitialState(42);
+const start = () => createTestState(42);
 
 describe("하루 사이클", () => {
   it("오전 → 오후 → 야간 → 정비 → 다음 날 오전", () => {

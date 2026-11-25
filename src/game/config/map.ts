@@ -2,9 +2,9 @@ import type { TileType } from "../core/types";
 
 // ─────────────────────────────────────────────────────────────
 // 시작 맵: 폐쇄된 지하철 환승역 (대합실 + 승강장)
-// 출입구 바로 아래 임시 거주 구역 주변만 정리되어 있고 나머지는 모두 잔해다.
-// 비상 발전실(왼쪽 아래, 급수원 옆)과 옛 창고(오른쪽)는 잔해 속에 고립되어 있어
-// 잔해를 치워 길을 뚫어야 쓸 수 있다. 승강장도 잔해 너머에 있다.
+// 출입구 바로 아래 2×2만 정리되어 있고 대합실은 모두 잔해다.
+// 급수원·비상 발전실·옛 창고는 새 게임마다 대합실 안 임의의 위치에 놓인다 (state/initialState.ts).
+// 처음에는 정리된 2×2와 그 주변 한 칸만 보이고, 길을 뚫을수록 시야가 넓어진다 (systems/vision.ts).
 // 한 글자 = 타일 1칸. 모든 줄의 길이가 같아야 한다.
 //
 //   #  암반·외벽        .  바닥(건설 가능)    d  잔해(정리 필요)
@@ -18,15 +18,15 @@ export const STATION_LAYOUT: string[] = [
   "##############EE##############################",
   "#ddddddddddddd..ddddddddddddd#ddddddddddddddd#",
   "#ddddddddddddd..ddddddddddddd#ddddddddddddddd#",
-  "#ddddddPdddd......dddPddddddd#ddddPddddddPddd#",
-  "#ddddddddddd......dddd...ddddSdddddd...dddddd#",
-  "#ddddddddddd......dddd...ddddSdddddd...dddddd#",
+  "#ddddddPdddddddddddddPddddddd#ddddPddddddPddd#",
+  "#ddddddddddddddddddddddddddddSdddddd...dddddd#",
+  "#ddddddddddddddddddddddddddddSdddddd...dddddd#",
   "#dddddddddddddddddddddddddddd#ddddddddddddddd#",
   "#ddddddPddddddPddddddPddddddd#ddddPddddddPddd#",
   "#dddddddddddddddddddddddddddd#ddddddddddddddd#",
-  "#Wd....dddddddddddddddddddddd#ddddddddddddddd#",
-  "#dd....dddddddddddddddddddddd#ddddddddddddddd#",
-  "#dd....dddddddddddddddddddddd########SS#######",
+  "#dddddddddddddddddddddddddddd#ddddddddddddddd#",
+  "#dddddddddddddddddddddddddddd#ddddddddddddddd#",
+  "#dddddddddddddddddddddddddddd########SS#######",
   "#============================#d..d..d..d..d.W#",
   "#============================#..d..d..d..d..d#",
   "#TT.TTTTTTTTTTTTTTTTTTTTTTTTT#TTTTTTTTTTTTTTT#",

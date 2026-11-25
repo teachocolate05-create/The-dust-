@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState } from "@/game/state/initialState";
+import { createTestState } from "@/game/state/initialState";
 import { gameReducer } from "@/game/state/reducer";
 import { migrateSave, validateSave } from "@/game/state/save";
 import { computeAccess } from "@/game/systems/access";
@@ -15,11 +15,11 @@ const rich = (s: GameState): GameState => ({ ...s, resources: { ...s.resources, 
 
 describe("구역 개방", () => {
   it("셔터 앞까지 길이 없으면 열 수 없다", () => {
-    expect(canOpenZone(toMaintenance(rich(createInitialState(1))), "east").ok).toBe(false);
+    expect(canOpenZone(toMaintenance(rich(createTestState(1))), "east").ok).toBe(false);
   });
   it("길이 뚫리면 정비 시간에 자원을 써서 연다. 셔터가 바닥이 되고 안쪽 창고에 닿을 수 있다", () => {
     // 본 구역(29열 왼쪽)만 잔해를 치운 상태
-    const base = createInitialState(1);
+    const base = createTestState(1);
     let s = toMaintenance(rich({ ...base, map: base.map.map((row) => row.map((t, x) => (x < 29 && t === "debris" ? "floor" : t))) }));
     expect(canOpenZone(toMorning(s), "east").ok).toBe(false); // 낮에는 불가
     expect(canOpenZone(s, "southeast").ok).toBe(false); // 동쪽 대합실 먼저
@@ -72,7 +72,7 @@ describe("공동 생활실", () => {
 
 describe("저장 데이터 변환 (6단계 → 업데이트 1)", () => {
   it("좁은 맵의 예전 저장 데이터에 확장 구역을 붙이고, 치운 잔해는 유지한다", () => {
-    const s = createInitialState(1);
+    const s = createTestState(1);
     const narrow = s.map.map((row) => row.slice(0, 30).map((t) => (t === "sealed" ? "rock" : t)));
     narrow[1][13] = "floor"; // 플레이어가 치운 칸
     const v6: any = { ...s, version: 6, map: narrow, rooms: s.rooms.filter((r) => r.rect.x < 29), zones: undefined };

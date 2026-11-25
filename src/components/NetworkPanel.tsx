@@ -7,6 +7,7 @@ import { NET_NAMES } from "@/game/systems/network";
 import { STATUS_LABEL, type PeriodSim } from "@/game/systems/operation";
 import { canModifyBase, PHASE_NAMES } from "@/game/systems/phase";
 import { CostTag } from "./Panels";
+import { roomKnown } from "@/game/systems/vision";
 import type { Mode, Selection } from "./uiTypes";
 
 interface Props {
@@ -21,7 +22,7 @@ export default function NetworkPanel({ state, sim, setMode, setSelection }: Prop
   const canBuild = canModifyBase(state);
   const draw = (net: NetKind, remove: boolean) => setMode({ kind: "drawLine", net, remove, anchor: null, path: null, dragging: false });
 
-  const machines = sim.reports.filter((r) => FACILITY_BY_ID[r.type].operates);
+  const machines = sim.reports.filter((r) => FACILITY_BY_ID[r.type].operates && roomKnown(state, state.rooms.find((x) => x.id === r.roomId)!.rect));
   const problems = machines.filter((r) => ["noPowerLine", "noWaterLine", "noPower", "noRawWater"].includes(r.status));
   const genUnlinked = machines.filter((r) => r.status === "running" && FACILITY_BY_ID[r.type].power > 0 && !r.powerNet);
 

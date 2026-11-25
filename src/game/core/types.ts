@@ -151,6 +151,8 @@ export interface GameState {
   stats: { harvests: number; expeditions: number; raidsRepelled: number };
   /** 독립 생존 거점을 완성한 날 */
   cityDay: number | null;
+  /** 탐색한 칸 (행마다 "0"/"1" 문자열). 한 번 본 칸은 지도에 남는다 */
+  explored: string[];
 }
 
 export interface WorldState {

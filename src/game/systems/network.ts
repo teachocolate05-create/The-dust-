@@ -9,6 +9,7 @@ import { bundleText, canAfford, missingText, scaleBundle } from "../core/resourc
 import type { Check, Facility, GameState, LogEntry, NetKind, Point, ResourceBundle, TileType } from "../core/types";
 import { canModifyBase, NOT_MAINTENANCE_REASON } from "./phase";
 import { facilityRect } from "./space";
+import { isExplored } from "./vision";
 
 export const NET_NAMES: Record<NetKind, { net: string; line: string }> = {
   power: { net: "전력망", line: "전력선" },
@@ -55,6 +56,7 @@ export function canBuildLines(state: GameState, kind: NetKind, path: Point[]): L
   const have = new Set(state.lines[kind]);
   let count = 0;
   for (const p of path) {
+    if (!isExplored(state, p.x, p.y)) return { ok: false, reason: `아직 탐색하지 않은 곳에는 ${NET_NAMES[kind].line}을 깔 수 없습니다.` };
     const t = state.map[p.y]?.[p.x];
     if (!t || !lineAllowedOn(kind, t)) {
       const why = t === "debris" ? "잔해" : t === "pillar" ? "기둥" : t === "track" ? "선로" : "벽";

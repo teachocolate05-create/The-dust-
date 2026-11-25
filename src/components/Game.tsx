@@ -10,6 +10,7 @@ import NetworkPanel from "./NetworkPanel";
 import SurvivorPanel from "./SurvivorPanel";
 import WorldPanel from "./WorldPanel";
 import { gateZoneAt, lockedZoneAt } from "@/game/systems/zones";
+import { isExplored } from "@/game/systems/vision";
 import { EventModal, GameOverModal, TitleScreen } from "./Screens";
 import type { GameEvent, GameState } from "@/game/core/types";
 import { forecastPhaseEnd } from "@/game/systems/time";
@@ -91,11 +92,19 @@ export default function Game() {
     const el = mapWrapRef.current;
     if (!el) return;
     const cols = state.map[0].length;
-    setTilePx(Math.max(22, Math.min(44, Math.floor((el.clientWidth - 16) / cols))));
+    const px = Math.max(22, Math.min(44, Math.floor((el.clientWidth - 16) / cols)));
+    setTilePx(px);
+    // 처음에는 출입구(14~15열, 맨 위)가 화면 가운데 오도록
+    requestAnimationFrame(() => {
+      el.scrollLeft = Math.max(0, 15 * px - el.clientWidth / 2);
+      el.scrollTop = 0;
+    });
   }, [state.map]);
+  // 시작 화면을 닫고 지도가 나타날 때 한 번 맞춘다
   useEffect(() => {
-    if (ready) fitZoom();
-  }, [ready, fitZoom]);
+    if (ready && !title) fitZoom();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, title]);
 
   const access = useMemo(() => computeAccess(state), [state]);
   const forecast = useMemo(() => forecastPhaseEnd(state), [state]);
@@ -194,7 +203,7 @@ export default function Game() {
   // ── 지도 입력 ──
   const onTileClick = (p: Point) => {
     if (mode.kind === "view") {
-      if (lockedZoneAt(state, p) || gateZoneAt(state, p)) {
+      if (!isExplored(state, p.x, p.y) || lockedZoneAt(state, p) || gateZoneAt(state, p)) {
         setSelection({ kind: "tile", x: p.x, y: p.y });
         setTab("base");
         return;

@@ -11,7 +11,8 @@ import { bundleText, isEmptyBundle } from "@/game/core/resources";
 import * as operation from "@/game/systems/operation";
 import { ZONES, ZONE_BY_ID } from "@/game/config/zones";
 import { CITY_GOAL, GOALS } from "@/game/config/goals";
-import { canOpenZone, gateZoneAt, isZoneOpen, lockedZoneAt } from "@/game/systems/zones";
+import { canOpenZone, gateSeen, gateZoneAt, isZoneOpen, lockedZoneAt } from "@/game/systems/zones";
+import { isExplored, roomKnown } from "@/game/systems/vision";
 import type { GameState, ResourceBundle, ResourceId, Room, RoomTypeId } from "@/game/core/types";
 import type { AccessInfo } from "@/game/systems/access";
 import { canModifyBase, PHASE_NAMES } from "@/game/systems/phase";
@@ -75,7 +76,17 @@ export function BasePanel(props: PanelProps) {
     if (room && fac) return <FacilityInfo {...props} room={room} facilityId={fac.id} />;
   }
   if (selection?.kind === "tile") {
-    const zone = lockedZoneAt(state, selection) ?? gateZoneAt(state, selection);
+    if (!isExplored(state, selection.x, selection.y))
+      return (
+        <div className="panel-body">
+          <h3 className="panel-title">미탐색 지역</h3>
+          <p className="small-text">아직 어둠에 가려진 곳입니다. 열린 곳과 맞닿은 잔해를 치워 길을 뚫으면 주변 한 칸씩 드러납니다.</p>
+          <button className="btn ghost" onClick={() => props.setSelection(null)}>
+            선택 해제
+          </button>
+        </div>
+      );
+    const zone = gateZoneAt(state, selection) ?? lockedZoneAt(state, selection);
     if (zone) return <ZoneCard state={state} zoneId={zone.id} run={props.run} />;
     const t = state.map[selection.y][selection.x];
     const info = TILE_INFO[t];
@@ -118,14 +129,15 @@ export function BasePanel(props: PanelProps) {
 }
 
 function Overview({ state, access, setSelection, goBuild }: PanelProps) {
-  const facilityCount = state.rooms.reduce((n, r) => n + r.facilities.length, 0);
-  const isolated = state.rooms.filter((r) => !access.roomAccess[r.id]);
+  const known = state.rooms.filter((r) => roomKnown(state, r.rect));
+  const facilityCount = known.reduce((n, r) => n + r.facilities.length, 0);
+  const isolated = known.filter((r) => !access.roomAccess[r.id]);
   return (
     <div className="panel-body">
       <h3 className="panel-title">거점 현황</h3>
       <div className="stat-grid">
         <div className="stat">
-          <span className="stat-val">{state.rooms.length}</span>
+          <span className="stat-val">{known.length}</span>
           <span className="stat-label">방</span>
         </div>
         <div className="stat">
@@ -145,7 +157,7 @@ function Overview({ state, access, setSelection, goBuild }: PanelProps) {
       <p className="muted small-text">지도를 눌러 방·시설·타일을 선택하세요. 방은 통로(출입구와 이어진 바닥)와 맞닿아야 출입할 수 있습니다.</p>
       <h4 className="section-title">방 목록</h4>
       <ul className="list">
-        {state.rooms.map((r) => (
+        {state.rooms.filter((r) => roomKnown(state, r.rect)).map((r) => (
           <li key={r.id}>
             <button className="list-item" onClick={() => setSelection({ kind: "room", roomId: r.id })}>
               <span className="swatch" style={{ background: ROOM_TYPE_BY_ID[r.type].color }} />
@@ -504,6 +516,25 @@ function ZoneCard({ state, zoneId, run }: { state: GameState; zoneId: string; ru
   const z = ZONE_BY_ID[zoneId];
   const open = isZoneOpen(state, z.id);
   const chk = canOpenZone(state, z.id);
+  // 열기 전에는 셔터 너머가 무엇인지 모른다
+  if (!open)
+    return (
+      <div className="zone-card">
+        <div className="zone-head">
+          <b>봉쇄된 셔터</b>
+          <span className="grow" />
+          <span className="status-pill st-off">미확인 구역</span>
+        </div>
+        <p className="small-text">녹슨 방화 셔터가 길을 막고 있다. 너머에 무엇이 있는지는 열어 봐야 안다.</p>
+        <div className="btn-row">
+          <CostTag bundle={z.cost} have={state.resources} label="비용" />
+          <button className="btn primary small" disabled={!chk.ok} onClick={() => run({ type: "OPEN_ZONE", zoneId: z.id }, "셔터를 열었습니다.")}>
+            셔터 열기
+          </button>
+        </div>
+        {!chk.ok && <p className="warn-text small-text">{chk.reason}</p>}
+      </div>
+    );
   return (
     <div className={`zone-card ${open ? "open" : ""}`}>
       <div className="zone-head">
@@ -560,17 +591,18 @@ export function BuildPanel({ state, selection, setSelection, setMode, run }: Pan
       </ul>
 
       <h3 className="panel-title">구역 개방</h3>
-      <p className="muted small-text">봉쇄된 셔터 앞까지 잔해를 치운 뒤, 자원을 써서 셔터를 엽니다. 새 구역에는 공간과 남은 시설이 있습니다.</p>
-      {ZONES.map((z) => (
+      <p className="muted small-text">탐색하다 봉쇄된 셔터를 찾으면 여기에 나타납니다. 셔터 앞까지 잔해를 치운 뒤 자원을 써서 열면, 너머의 구역이 지도에 드러납니다.</p>
+      {ZONES.filter((z) => isZoneOpen(state, z.id) || gateSeen(state, z.id)).map((z) => (
         <ZoneCard key={z.id} state={state} zoneId={z.id} run={run} />
       ))}
+      {!ZONES.some((z) => isZoneOpen(state, z.id) || gateSeen(state, z.id)) && <p className="muted small-text">아직 발견한 셔터가 없습니다.</p>}
 
       <h3 className="panel-title">시설 설치</h3>
       {!room ? (
         <>
           <p className="muted small-text">시설을 설치할 방을 선택하세요.</p>
           <ul className="list">
-            {state.rooms.map((r) => (
+            {state.rooms.filter((r) => roomKnown(state, r.rect)).map((r) => (
               <li key={r.id}>
                 <button className="list-item" onClick={() => setSelection({ kind: "room", roomId: r.id })}>
                   <span className="swatch" style={{ background: ROOM_TYPE_BY_ID[r.type].color }} />
@@ -626,7 +658,9 @@ export function BuildPanel({ state, selection, setSelection, setMode, run }: Pan
 export function ResourcePanel({ state, forecast, cap }: { state: GameState; forecast: PhaseForecast; cap: Record<ResourceId, number> }) {
   const day = state.phase !== "maintenance";
   const { supply, demand, used } = forecast.sim.power;
-  const machines = forecast.sim.reports.filter((r) => FACILITY_BY_ID[r.type].operates);
+  const machines = forecast.sim.reports.filter(
+    (r) => FACILITY_BY_ID[r.type].operates && roomKnown(state, state.rooms.find((x) => x.id === r.roomId)!.rect),
+  );
   return (
     <div className="panel-body">
       <h3 className="panel-title">자원 현황</h3>

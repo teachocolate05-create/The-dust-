@@ -7,6 +7,7 @@ import * as operation from "../systems/operation";
 import * as network from "../systems/network";
 import { checkGameOver } from "../systems/events";
 import { updateGoals } from "../systems/goals";
+import { updateExplored } from "../systems/vision";
 import { openZone } from "../systems/zones";
 import * as world from "../systems/world";
 import type { FactionId, RegionId } from "../config/world";
@@ -58,8 +59,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   const shrink = action.type === "REMOVE_FACILITY" || action.type === "DELETE_ROOM" || action.type === "CHANGE_ROOM_TYPE";
   const checked = checkGameOver(shrink ? operation.enforceCapacity(next) : next);
   if (action.type === "NEW_GAME" || action.type === "LOAD") return checked;
+  // 열린 곳과 그 주변 한 칸을 지도에 드러낸다
+  const seen = updateExplored(checked);
   // 업데이트 5: 장기 목표 판정
-  return updateGoals(checked, checked.events.serial !== state.events.serial);
+  return updateGoals(seen, seen.events.serial !== state.events.serial);
 }
 
 function applyAction(state: GameState, action: GameAction): GameState {

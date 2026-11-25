@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STATION_LAYOUT } from "@/game/config/map";
-import { createInitialState } from "@/game/state/initialState";
+import { createTestState } from "@/game/state/initialState";
 import { gameReducer } from "@/game/state/reducer";
 import { migrateSave, validateSave } from "@/game/state/save";
 import * as space from "@/game/systems/space";
@@ -17,7 +17,7 @@ describe("시작 맵", () => {
     expect(STATION_LAYOUT.every((r) => r.length === w)).toBe(true);
   });
   it("임시 거주 구역만 출입 가능하고, 발전실·옛 창고는 잔해에 막혀 고립되어 있다", () => {
-    const s = createInitialState(1);
+    const s = createTestState(1);
     const access = computeAccess(s);
     const byName = (n: string) => s.rooms.find((r) => r.name === n)!;
     for (const r of s.rooms) expect(space.validateRoomRect(s, r.rect, r.type, r.id)).toBeNull();
@@ -38,7 +38,7 @@ describe("방 생성", () => {
     expect(s2.resources.materials).toBe(s.resources.materials - (4 + 12));
   });
   it("잔해·기둥·승강장·겹침·최소 크기·자원 부족을 막는다", () => {
-    const real = toMaintenance(createInitialState(1));
+    const real = toMaintenance(createTestState(1));
     expect(space.canCreateRoom(real, { x: 1, y: 1, w: 3, h: 2 }, "storage").ok).toBe(false); // 잔해
     const s = fresh();
     expect(space.canCreateRoom(s, { x: 6, y: 3, w: 3, h: 2 }, "storage").ok).toBe(false); // 기둥(7,3)
@@ -124,7 +124,7 @@ describe("출입 판정", () => {
 
 describe("저장 데이터 검증", () => {
   it("정상 데이터는 통과, 손상 데이터는 거부, 예전 버전은 변환", () => {
-    const s = createInitialState(1);
+    const s = createTestState(1);
     expect(validateSave(JSON.parse(JSON.stringify(s)))).toBe(true);
     expect(validateSave({ ...s, version: 99 })).toBe(false);
     expect(validateSave({ ...s, rooms: [{ id: "x" }] })).toBe(false);

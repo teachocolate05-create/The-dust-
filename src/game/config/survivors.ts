@@ -62,6 +62,8 @@ export const SURVIVOR_RULES = {
   /** 식량·식수를 배급받지 못한 구간마다 건강 감소 (자원별) */
   starvationHealthLoss: 8,
   /** 잘 먹고 쉰 구간의 건강 회복 */
+  /** 처음부터 가진 침낭 (침상 1개로 친다) */
+  baseBeds: 1,
   /** 능력치 숙련: 같은 업무를 (기본 + 능력치 × 배수) 구간 하면 능력치 +1 (업데이트 5) */
   xpBase: 4,
   xpPerLevel: 3,

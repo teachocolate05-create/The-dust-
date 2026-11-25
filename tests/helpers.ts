@@ -1,4 +1,4 @@
-import { createInitialState } from "@/game/state/initialState";
+import { createTestState } from "@/game/state/initialState";
 import type { GameState } from "@/game/core/types";
 
 /**
@@ -7,7 +7,7 @@ import type { GameState } from "@/game/core/types";
  * 시작 방: 임시 거주 구역 (12,3,3,3) 침상 (12,3) / 비상 발전실 (3,9,4,3) 발전기 (4,10) / 옛 창고 (22,4,3,2) 선반 (22,4)
  */
 export function opened(seed = 1): GameState {
-  const s = createInitialState(seed);
+  const s = createTestState(seed);
   return { ...s, map: s.map.map((row) => row.map((t) => (t === "debris" ? "floor" : t))) };
 }
 

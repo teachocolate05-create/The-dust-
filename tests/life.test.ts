@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TRAIT_BY_ID } from "@/game/config/life";
-import { createInitialState } from "@/game/state/initialState";
+import { createTestState } from "@/game/state/initialState";
 import { gameReducer } from "@/game/state/reducer";
 import { migrateSave, validateSave } from "@/game/state/save";
 import { addCondition, conditionName, getRel, lifeWorkMultiplier, processLifeDay, rollTraits } from "@/game/systems/life";
@@ -19,7 +19,7 @@ const mk = (id: string, over: Partial<Survivor> = {}): Survivor => ({
   morale: 60,
   ...over,
 });
-const withPeople = (people: Survivor[], s: GameState = createInitialState(1)): GameState => ({
+const withPeople = (people: Survivor[], s: GameState = createTestState(1)): GameState => ({
   ...s,
   survivors: [...s.survivors, ...people],
   resources: { ...s.resources, food: 10, water: 10 },

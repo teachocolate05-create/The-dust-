@@ -6,6 +6,7 @@ import { bundleText, canAfford, missingText } from "../core/resources";
 import type { Check, GameState, LogEntry, Point } from "../core/types";
 import { computeAccess } from "./access";
 import { canModifyBase, NOT_MAINTENANCE_REASON } from "./phase";
+import { isExplored, revealRect } from "./vision";
 
 export function isZoneOpen(state: GameState, id: string): boolean {
   return state.zones.includes(id);
@@ -14,6 +15,12 @@ export function isZoneOpen(state: GameState, id: string): boolean {
 /** 이 칸이 아직 열리지 않은 구역 안에 있으면 그 구역 */
 export function lockedZoneAt(state: GameState, p: Point): ZoneDef | undefined {
   return ZONES.find((z) => !isZoneOpen(state, z.id) && pointInRect(p, z.rect));
+}
+
+/** 셔터를 본 적이 있는 구역 (열기 전에는 이름도 모른다) */
+export function gateSeen(state: GameState, id: string): boolean {
+  const z = ZONE_BY_ID[id];
+  return !!z && z.gates.some((g) => isExplored(state, g.x, g.y));
 }
 
 /** 이 칸이 아직 열리지 않은 구역의 셔터면 그 구역 */
@@ -48,5 +55,7 @@ export function openZone(state: GameState, id: string): GameState {
     kind: "build",
     text: `셔터를 열어 '${z.name}'을(를) 개방했다. (${bundleText(chk.cost)} 사용) ${z.desc}`,
   };
-  return { ...state, map, resources, zones: [...state.zones, id], log: [entry, ...state.log].slice(0, RULES.maxLogEntries) };
+  // 셔터를 열면 구역 전체가 지도에 드러나고 계속 남는다
+  const explored = revealRect(state.explored, z.rect);
+  return { ...state, map, resources, explored, zones: [...state.zones, id], log: [entry, ...state.log].slice(0, RULES.maxLogEntries) };
 }

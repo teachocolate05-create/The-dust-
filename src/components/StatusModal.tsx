@@ -150,6 +150,17 @@ const STAGES: { n: number; title: string; status: "done" | "next" | "todo"; item
       "쉬면 부상이 없어도 확률적으로 건강 소량 회복 (플레이어 포함, 밤잠 포함)",
     ],
   },
+  {
+    n: 12,
+    title: "수정 · 탐색 개편",
+    status: "done",
+    items: [
+      "시작: 입구 아래 2×2만 열림, 나머지는 미탐색 (침낭 하나로 시작)",
+      "급수원·비상 발전실·옛 창고는 게임마다 대합실 안 무작위 위치 (항상 도달 가능)",
+      "시야: 열린 곳과 그 주변 한 칸만 보이고, 길을 뚫을수록 넓어짐. 본 곳은 지도에 남음",
+      "봉쇄 구역은 셔터를 열기 전까지 지도에 나타나지 않고, 열면 구역 전체가 영구히 드러남",
+    ],
+  },
 ];
 
 const LABEL = { done: "작동", next: "다음 단계", todo: "예정" };
@@ -173,7 +184,7 @@ export default function StatusModal({ onClose }: { onClose: () => void }) {
           {STAGES.map((s) => (
             <li key={s.n} className={`stage stage-${s.status}`}>
               <div className="stage-head">
-                <span className="stage-n">{s.n > 6 ? `업데이트 ${s.n - 6}` : `${s.n}단계`}</span>
+                <span className="stage-n">{s.n > 11 ? "수정" : s.n > 6 ? `업데이트 ${s.n - 6}` : `${s.n}단계`}</span>
                 <span className="stage-title">{s.title}</span>
                 <span className={`badge badge-${s.status}`}>{LABEL[s.status]}</span>
               </div>

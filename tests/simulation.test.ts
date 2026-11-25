@@ -1,7 +1,7 @@
 // 7일 이상 생존 테스트: 간단한 규칙으로 움직이는 자동 플레이어가 여러 시드로 게임을 진행한다.
 // 매 구간 상태 불변식(자원 범위, 행동 횟수, 시간 순서)과 저장/불러오기를 검사한다.
 import { describe, expect, it } from "vitest";
-import { createInitialState } from "@/game/state/initialState";
+import { createInitialState, createTestState } from "@/game/state/initialState";
 import { gameReducer, type GameAction } from "@/game/state/reducer";
 import { migrateSave, validateSave } from "@/game/state/save";
 import { canDoAction } from "@/game/systems/actions";
@@ -11,7 +11,11 @@ import { canAccept, bedCount, population } from "@/game/systems/survivors";
 import * as space from "@/game/systems/space";
 import type { GameState, Point } from "@/game/core/types";
 
-const GEN = { x: 4, y: 10 };
+/** 비상 발전실 쪽으로 길을 뚫는다 (위치는 게임마다 다르다) */
+const genOf = (s: GameState) => {
+  const r = s.rooms.find((x) => x.name === "비상 발전실")!.rect;
+  return { x: r.x + 1, y: r.y + 1 };
+};
 
 function nextDebris(s: GameState): Point | null {
   const access = computeAccess(s);
@@ -21,7 +25,8 @@ function nextDebris(s: GameState): Point | null {
     row.forEach((t, x) => {
       if (t !== "debris") return;
       if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => access.corridor.has(`${x + dx},${y + dy}`))) return;
-      const d = Math.abs(x - GEN.x) + Math.abs(y - GEN.y);
+      const g = genOf(s);
+      const d = Math.abs(x - g.x) + Math.abs(y - g.y);
       if (d < bestD) {
         bestD = d;
         best = { x, y };
@@ -55,9 +60,29 @@ function dayAction(s: GameState): GameAction | null {
 function maintenance(s0: GameState): GameState {
   let s = s0;
   // 침상이 모자라면 거주실에 간이 침상
-  const res = s.rooms.find((r) => r.type === "residence")!;
-  if (s.pending.some((p) => p.stage === "arrived") && bedCount(s) <= population(s)) {
-    for (const [x, y, rot] of [[12, 4, false], [12, 5, false], [14, 3, true]] as [number, number, boolean][])
+  // 거주실이 없으면 탐색한 바닥에 2×2 거주실을 짓는다 (통로를 막지 않는 자리)
+  if (!s.rooms.some((r) => r.type === "residence") && s.resources.materials >= 14) {
+    outer: for (let y = 1; y <= 10; y++)
+      for (let x = 1; x <= 27; x++) {
+        const rect = { x, y, w: 2, h: 2 };
+        if (!space.canCreateRoom(s, rect, "residence").ok) continue;
+        const t = gameReducer(s, { type: "CREATE_ROOM", rect, roomType: "residence" });
+        const acc = computeAccess(t);
+        if (t.rooms.every((r) => acc.roomAccess[r.id] || !computeAccess(s).roomAccess[r.id]) && acc.roomAccess[t.rooms[t.rooms.length - 1].id] && acc.corridor.size >= computeAccess(s).corridor.size - 4) {
+          s = t;
+          break outer;
+        }
+      }
+  }
+  const res = s.rooms.find((r) => r.type === "residence");
+  if (res && s.pending.some((p) => p.stage === "arrived") && bedCount(s) <= population(s)) {
+    for (const [x, y, rot] of [
+      [res.rect.x, res.rect.y, false],
+      [res.rect.x, res.rect.y + 1, false],
+      [12, 4, false],
+      [12, 5, false],
+      [14, 3, true],
+    ] as [number, number, boolean][])
       if (space.canPlaceFacility(s, res.id, "cot", x, y, rot).ok) {
         s = gameReducer(s, { type: "PLACE_FACILITY", roomId: res.id, facilityType: "cot", x, y, rotated: rot });
         break;
@@ -69,7 +94,8 @@ function maintenance(s0: GameState): GameState {
   });
   // 업무: 식량이 모자라면 식량 확보, 아니면 잔해 정리 (발전기 방향 지정)
   const marks: Point[] = [];
-  for (let y = 6; y <= 9; y++) for (let x = 4; x <= 13; x++) marks.push({ x, y });
+  const g = genOf(s);
+  for (let y = Math.min(3, g.y); y <= Math.max(3, g.y); y++) for (let x = Math.min(14, g.x); x <= Math.max(14, g.x); x++) marks.push({ x, y });
   s = gameReducer(s, { type: "MARK_DEBRIS", points: marks, on: true });
   for (const sv of s.survivors.slice(1)) {
     const job = sv.fatigue >= 70 ? "rest" : s.resources.food < population(s) * 8 ? "forage" : "debris";
@@ -100,8 +126,8 @@ function checkInvariants(s: GameState) {
   expect(validateSave(loaded)).toBe(true);
 }
 
-function play(seed: number, days: number) {
-  let s = createInitialState(seed);
+function play(seed: number, days: number, real = false) {
+  let s = real ? createInitialState(seed) : createTestState(seed);
   let events = 0;
   while (s.day <= days && !s.gameOver) {
     if (s.phase === "maintenance") {
@@ -145,9 +171,20 @@ describe("7일 이상 생존 테스트", () => {
   });
 });
 
+describe("실제 시작(무작위 배치·안개)으로 7일 이상 생존 테스트", () => {
+  it("20개 시드로 10일 진행: 오류 없이 불변식 유지", () => {
+    const results = Array.from({ length: 20 }, (_, i) => play(i + 100, 10, true));
+    const survived7 = results.filter((r) => !r.s.gameOver || r.s.gameOver.day > 7).length;
+    const reachedGen = results.filter((r) => computeAccess(r.s).roomAccess[r.s.rooms.find((x) => x.name === "비상 발전실")!.id]).length;
+    const explored = results.reduce((n, r) => n + r.s.explored.join("").split("").filter((c) => c === "1").length, 0) / 20;
+    console.log(`실제 시작: 7일 생존 ${survived7}/20 · 발전기 도달 ${reachedGen}/20 · 평균 탐색 ${Math.round(explored)}칸`);
+    expect(survived7).toBeGreaterThanOrEqual(14);
+  });
+});
+
 describe("방치하면 게임 오버", () => {
   it("아무 행동도 하지 않으면 식량·식수가 바닥나 결국 쓰러진다", () => {
-    let s = createInitialState(3);
+    let s = createTestState(3);
     let guard = 0;
     while (!s.gameOver && guard++ < 200) s = gameReducer(s, s.phase === "maintenance" ? { type: "START_NEXT_DAY" } : { type: "END_PHASE" });
     expect(s.gameOver).not.toBeNull();

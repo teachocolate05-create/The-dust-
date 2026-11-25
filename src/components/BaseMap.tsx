@@ -7,7 +7,6 @@ import type { GameState, Point, Rect, TileType } from "@/game/core/types";
 import type { AccessInfo } from "@/game/systems/access";
 import { facilityRect } from "@/game/systems/space";
 import { debrisArea } from "@/game/systems/actions";
-import { ZONES } from "@/game/config/zones";
 import type { LineView, Mode, Selection } from "./uiTypes";
 import type { FacilityStatus } from "@/game/systems/operation";
 
@@ -223,6 +222,8 @@ export default function BaseMap(p: Props) {
   );
 
   const labels = state.rooms.map((room) => {
+    // 이름표는 방의 왼쪽 위 칸을 본 뒤에만 (안개 너머 방이 드러나지 않도록)
+    if (state.explored[room.rect.y]?.[room.rect.x] !== "1") return null;
     const { x, y, w } = room.rect;
     const ok = access.roomAccess[room.id];
     const text = ok ? room.name : `${room.name} · 고립`;
@@ -351,6 +352,20 @@ export default function BaseMap(p: Props) {
     );
   });
 
+  // 안개: 보지 못한 칸을 하나의 경로로 그린다
+  let fogPath = "";
+  let fogEdge = "";
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      if (state.explored[y]?.[x] === "1") continue;
+      fogPath += `M${x * S} ${y * S}h${S}v${S}h${-S}z`;
+      // 보이는 칸과 맞닿은 테두리
+      if (state.explored[y - 1]?.[x] === "1") fogEdge += `M${x * S} ${y * S}h${S}`;
+      if (state.explored[y + 1]?.[x] === "1") fogEdge += `M${x * S} ${(y + 1) * S}h${S}`;
+      if (state.explored[y]?.[x - 1] === "1") fogEdge += `M${x * S} ${y * S}v${S}`;
+      if (state.explored[y]?.[x + 1] === "1") fogEdge += `M${(x + 1) * S} ${y * S}v${S}`;
+    }
+
   const tileSel =
     selection?.kind === "tile" ? (
       <rect x={selection.x * S + 1} y={selection.y * S + 1} width={S - 2} height={S - 2} fill="none" stroke="#f2c14e" strokeWidth={2.5} />
@@ -401,6 +416,10 @@ export default function BaseMap(p: Props) {
           <rect width={12} height={4} fill="#c9a227" />
           <path d="M0 4 L4 0 H8 L4 4 Z" fill="#1b1814" />
         </pattern>
+        <pattern id="fogGrain" width={12} height={12} patternUnits="userSpaceOnUse">
+          <circle cx={3} cy={4} r={0.7} fill="#ffffff08" />
+          <circle cx={9} cy={9} r={0.6} fill="#ffffff06" />
+        </pattern>
         <pattern id="isolated" width={10} height={10} patternUnits="userSpaceOnUse">
           <path d="M0 10 L10 0" stroke="#e0604f66" strokeWidth={2} />
         </pattern>
@@ -413,22 +432,12 @@ export default function BaseMap(p: Props) {
         {lineLayer}
       </g>
       <g>{labels}</g>
-      <g pointerEvents="none">
-        {ZONES.filter((z) => !state.zones.includes(z.id)).map((z) => (
-          <g key={`fog${z.id}`}>
-            <rect x={z.rect.x * S} y={z.rect.y * S} width={z.rect.w * S} height={z.rect.h * S} fill="#0b0906" opacity={0.86} />
-            <rect x={z.rect.x * S} y={z.rect.y * S} width={z.rect.w * S} height={z.rect.h * S} fill="url(#rock)" />
-            <text x={(z.rect.x + z.rect.w / 2) * S} y={(z.rect.y + z.rect.h / 2) * S - 4} textAnchor="middle" fontSize={15} fontWeight={800} fill="#a39882">
-              {z.name}
-            </text>
-            <text x={(z.rect.x + z.rect.w / 2) * S} y={(z.rect.y + z.rect.h / 2) * S + 14} textAnchor="middle" fontSize={11} fill="#7d7464">
-              봉쇄 구역 · 셔터를 열어 개방
-            </text>
-          </g>
-        ))}
-      </g>
       <g pointerEvents="none">{markLayer}</g>
       {mode.kind === "clearDebris" && <g pointerEvents="none">{debrisHints}</g>}
+      {/* 전장의 안개: 아직 보지 못한 칸 (봉쇄 구역도 열기 전에는 여기 가려진다) */}
+      <path d={fogPath} fill="#080705" pointerEvents="none" />
+      <path d={fogPath} fill="url(#fogGrain)" pointerEvents="none" />
+      <path d={fogEdge} fill="none" stroke="#2a241c" strokeWidth={1} pointerEvents="none" />
       {state.phase === "night" && <rect pointerEvents="none" width={W * S} height={H * S} fill="#0b1636" opacity={0.32} />}
       {state.phase === "afternoon" && <rect pointerEvents="none" width={W * S} height={H * S} fill="#6b3d10" opacity={0.08} />}
       {tileSel}

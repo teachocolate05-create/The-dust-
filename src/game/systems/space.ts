@@ -20,6 +20,7 @@ import type {
 } from "../core/types";
 import { canModifyBase, NOT_MAINTENANCE_REASON } from "./phase";
 import { hasWorking } from "./operation";
+import { isExplored } from "./vision";
 
 // ───────────── 공통 도우미 ─────────────
 
@@ -82,6 +83,7 @@ export function validateRoomRect(
   if (area(rect) > RULES.room.maxArea) return `방은 최대 ${RULES.room.maxArea}칸까지 만들 수 있습니다.`;
 
   for (const p of rectTiles(rect)) {
+    if (!isExplored(state, p.x, p.y)) return "아직 탐색하지 않은 곳이 포함되어 있습니다.";
     const t = state.map[p.y][p.x];
     if (t !== "floor") {
       if (t === "debris") return "잔해가 남아 있는 칸에는 방을 만들 수 없습니다.";

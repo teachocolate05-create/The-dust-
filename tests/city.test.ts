@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState } from "@/game/state/initialState";
+import { createTestState } from "@/game/state/initialState";
 import { gameReducer } from "@/game/state/reducer";
 import { migrateSave, validateSave } from "@/game/state/save";
 import { canOpenZone } from "@/game/systems/zones";
@@ -87,7 +87,7 @@ describe("고급 전력망·수도망", () => {
 
 describe("숙련", () => {
   it("같은 업무를 계속하면 능력치가 오른다", () => {
-    let s = { ...createInitialState(1), survivors: [...createInitialState(1).survivors, mk("a", { skills: { tech: 1, medic: 1, gather: 2, farm: 1, manage: 1 } })] };
+    let s = { ...createTestState(1), survivors: [...createTestState(1).survivors, mk("a", { skills: { tech: 1, medic: 1, gather: 2, farm: 1, manage: 1 } })] };
     for (let i = 0; i < xpNeeded(2); i++) s = gainXp(s, "a", "gather");
     expect(s.survivors[1].skills.gather).toBe(3);
     expect(s.survivors[1].xp?.gather).toBe(0);
@@ -98,7 +98,7 @@ describe("건강 회복 (휴식)", () => {
   it("부상이 없어도 쉬면 일정 확률로 건강이 조금 오른다 (플레이어는 행동을 안 한 구간)", () => {
     let up = 0;
     for (let seed = 1; seed <= 100; seed++) {
-      const s0 = createInitialState(seed);
+      const s0 = createTestState(seed);
       const s = { ...s0, survivors: [{ ...s0.survivors[0], health: 70 }], resources: { ...s0.resources, food: 9, water: 9 } };
       if (gameReducer(s, { type: "END_PHASE" }).survivors[0].health > 70) up++;
     }
@@ -134,7 +134,7 @@ describe("장기 목표", () => {
 
 describe("저장 변환 (업데이트 4 → 5)", () => {
   it("지하 2층을 맵 아래에 붙이고 옛 변전소를 추가한다", () => {
-    const s = createInitialState(1);
+    const s = createTestState(1);
     const old = s.map.slice(0, 17).map((row) => row.map((t, x) => (x === 3 && t !== "rock" && t !== "platform" ? "track" : t)));
     old[16][3] = "rock";
     const v10: any = {

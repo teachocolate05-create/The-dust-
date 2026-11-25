@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState } from "@/game/state/initialState";
+import { createTestState } from "@/game/state/initialState";
 import { gameReducer } from "@/game/state/reducer";
 import { migrateSave, validateSave } from "@/game/state/save";
 import { simulatePeriod } from "@/game/systems/operation";
@@ -86,7 +86,7 @@ describe("식량 가공·자동 생산", () => {
     expect(f.consumption.materials).toBe(3);
   });
   it("제작 업무 품목을 바꿀 수 있다", () => {
-    let s = createInitialState(1);
+    let s = createTestState(1);
     s = gameReducer(s, { type: "SET_CRAFT_TARGET", target: "recycle" });
     expect(s.craftTarget).toBe("recycle");
   });
@@ -94,7 +94,7 @@ describe("식량 가공·자동 생산", () => {
 
 describe("저장 변환 (업데이트 2 → 3)", () => {
   it("제작 품목 기본값을 넣는다", () => {
-    const v8: any = { ...JSON.parse(JSON.stringify(createInitialState(1))), version: 8, craftTarget: undefined };
+    const v8: any = { ...JSON.parse(JSON.stringify(createTestState(1))), version: 8, craftTarget: undefined };
     const m = migrateSave(v8);
     expect(validateSave(m)).toBe(true);
     expect(m.craftTarget).toBe("parts");

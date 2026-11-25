@@ -4,6 +4,7 @@ import { ROOM_TYPE_BY_ID } from "../config/rooms";
 import type { GameState, TileType } from "../core/types";
 import { SAVE_VERSION, ZONE_PRESET_ROOMS } from "./initialState";
 import { parseLayout, STATION_LAYOUT } from "../config/map";
+import { ZONES } from "../config/zones";
 import { createPlayer } from "../systems/survivors";
 import { JOB_BY_ID } from "../config/survivors";
 import { TRAIT_BY_ID } from "../config/life";
@@ -62,6 +63,8 @@ export function validateSave(data: any): data is GameState {
   if (!data.relations || typeof data.relations !== "object" || !Object.values(data.relations).every((v) => typeof v === "number")) return false;
   if (!["parts", "fuel", "recycle"].includes(data.craftTarget)) return false;
   if (!isInt(data.feastDay)) return false;
+  if (!Array.isArray(data.explored) || data.explored.length !== data.map.length || !data.explored.every((r: any, y: number) => typeof r === "string" && r.length === data.map[y].length && /^[01]*$/.test(r)))
+    return false;
   if (!Array.isArray(data.goals) || !data.goals.every((g: any) => typeof g === "string")) return false;
   if (!data.stats || !isInt(data.stats.harvests) || !isInt(data.stats.expeditions) || !isInt(data.stats.raidsRepelled)) return false;
   if (data.cityDay !== null && !isInt(data.cityDay)) return false;
@@ -200,6 +203,17 @@ export function migrateSave(data: any): any {
       stats: { harvests: 0, expeditions: 0, raidsRepelled: 0 },
       cityDay: null,
     };
+  }
+  // 업데이트 5 → 탐색 개편: 지금까지 본 곳은 모두 밝히고, 열지 않은 봉쇄 구역만 가린다
+  if (data && data.version === 11 && Array.isArray(data.map)) {
+    let explored = data.map.map((row: any[]) => "1".repeat(row.length));
+    const opened: string[] = Array.isArray(data.zones) ? data.zones : [];
+    for (const z of ZONES)
+      if (!opened.includes(z.id))
+        explored = explored.map((row: string, y: number) =>
+          y < z.rect.y || y >= z.rect.y + z.rect.h ? row : row.slice(0, z.rect.x) + "0".repeat(z.rect.w) + row.slice(z.rect.x + z.rect.w),
+        );
+    data = { ...data, version: 12, explored };
   }
   return data;
 }

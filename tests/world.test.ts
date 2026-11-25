@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState } from "@/game/state/initialState";
+import { createTestState } from "@/game/state/initialState";
 import { gameReducer } from "@/game/state/reducer";
 import { migrateSave, validateSave } from "@/game/state/save";
 import { canDoAction } from "@/game/systems/actions";
@@ -21,7 +21,7 @@ const mk = (id: string, over: Partial<Survivor> = {}): Survivor => ({
   ...over,
 });
 const base = (people: Survivor[] = [mk("a"), mk("b")]): GameState => {
-  const s = createInitialState(1);
+  const s = createTestState(1);
   return { ...s, survivors: [...s.survivors, ...people], resources: { ...s.resources, food: 10, water: 10, materials: 30, parts: 10 } };
 };
 const contact = (s: GameState, id: "traders" | "clinic" | "raiders", relation?: number): GameState => ({
@@ -31,7 +31,7 @@ const contact = (s: GameState, id: "traders" | "clinic" | "raiders", relation?: 
 
 describe("지상 탐사", () => {
   it("처음에는 역 앞 광장만 알고, 지상 탐사로 이웃 지역을 찾는다", () => {
-    expect(createInitialState(1).world.regions.plaza.discovered).toBe(true);
+    expect(createTestState(1).world.regions.plaza.discovered).toBe(true);
     let found = 0;
     for (let seed = 1; seed <= 60; seed++) {
       const s = gameReducer({ ...base(), seed }, { type: "DO_ACTION", actionId: "surfaceScout" });
@@ -137,7 +137,7 @@ describe("사기 회복", () => {
   it("격려하기 행동: 모든 생존자 사기 +8", () => {
     const s = gameReducer(base(), { type: "DO_ACTION", actionId: "encourage" });
     expect(s.survivors[1].morale).toBe(58);
-    expect(canDoAction(createInitialState(1), "encourage").ok).toBe(false);
+    expect(canDoAction(createTestState(1), "encourage").ok).toBe(false);
   });
   it("특별 배급: 정비 시간 하루 한 번, 인원당 식량·식수 1, 사기 +12", () => {
     let s = toMaintenance(base());
@@ -166,7 +166,7 @@ describe("치료 대상 지정", () => {
 
 describe("저장 변환 (업데이트 3 → 4)", () => {
   it("외부 세계를 붙인다", () => {
-    const v9: any = { ...JSON.parse(JSON.stringify(createInitialState(1))), version: 9, world: undefined, feastDay: undefined };
+    const v9: any = { ...JSON.parse(JSON.stringify(createTestState(1))), version: 9, world: undefined, feastDay: undefined };
     const m = migrateSave(v9);
     expect(validateSave(m)).toBe(true);
     expect(m.world.regions.plaza.discovered).toBe(true);

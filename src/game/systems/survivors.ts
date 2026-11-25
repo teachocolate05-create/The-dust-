@@ -12,6 +12,7 @@ import type { Check, GameState, LogEntry, PendingSurvivor, Point, ResourceBundle
 import { computeAccess } from "./access";
 import { addCapped, hasWorking } from "./operation";
 import { canModifyBase } from "./phase";
+import { isExplored } from "./vision";
 import { doHeal, healChance, lifeBlockReason, lifeWorkMultiplier, rollTraits, workFatigueExtra } from "./life";
 import { threatInjury } from "./events";
 import { THREAT_RULES } from "../config/events";
@@ -45,9 +46,10 @@ export function population(state: GameState): number {
 }
 
 /** 출입 가능한 거주실의 침상 수 */
+/** 출입 가능한 거주실의 침상 수 + 처음부터 가진 침낭 */
 export function bedCount(state: GameState): number {
   const access = computeAccess(state);
-  let n = 0;
+  let n = R.baseBeds;
   for (const room of state.rooms) {
     if (room.type !== "residence" || !access.roomAccess[room.id]) continue;
     for (const f of room.facilities) n += FACILITY_BY_ID[f.type].beds;
@@ -165,7 +167,7 @@ export function setDebrisMarks(state: GameState, points: Point[], on: boolean): 
   let changed = 0;
   for (const p of points) {
     const k = `${p.x},${p.y}`;
-    if (on && state.map[p.y]?.[p.x] === "debris" && !set.has(k)) {
+    if (on && state.map[p.y]?.[p.x] === "debris" && isExplored(state, p.x, p.y) && !set.has(k)) {
       set.add(k);
       changed++;
     }

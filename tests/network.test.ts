@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState } from "@/game/state/initialState";
+import { createTestState } from "@/game/state/initialState";
 import { gameReducer } from "@/game/state/reducer";
 import { canBuildLines, computeNets, linePath } from "@/game/systems/network";
 import { simulatePeriod } from "@/game/systems/operation";
@@ -28,7 +28,7 @@ describe("전력선·수도관 설치", () => {
     expect(canBuildLines(toMorning(s), "power", path).ok).toBe(false);
   });
   it("잔해·기둥 위에는 설치 불가", () => {
-    const real = toMaintenance(createInitialState(1));
+    const real = toMaintenance(createTestState(1));
     expect(canBuildLines(real, "power", [{ x: 1, y: 1 }]).ok).toBe(false);
     expect(canBuildLines(toMaintenance(opened()), "power", [{ x: 7, y: 3 }]).ok).toBe(false);
   });
