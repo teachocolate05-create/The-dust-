@@ -13,7 +13,7 @@ import { bundleText } from "@/game/core/resources";
 import { canFeast, feastCost } from "@/game/systems/world";
 import { REGION_BY_ID, WORLD_RULES, type RegionId } from "@/game/config/world";
 import { CostTag } from "./Panels";
-import { LIFE_RULES, TRAIT_BY_ID } from "@/game/config/life";
+import { LIFE_RULES, MEDICINE, TRAIT_BY_ID } from "@/game/config/life";
 import { closest, conditionName, moraleLabel } from "@/game/systems/life";
 
 interface Props {
@@ -172,6 +172,10 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
         </>
       )}
 
+      <p className="small-text">
+        의약품 <b>{state.medicine}</b>개 <span className="muted">— 밖에서 행동하거나 원정에서 돌아올 때 5% 확률로 발견 (하루 최대 {MEDICINE.dailyMax}개). 언제든 써서 건강 +{MEDICINE.heal}.</span>
+      </p>
+      <p className="muted small-text">건강이 0이 되면 생존자는 숨지고, 남은 사람들의 사기가 1~5 떨어집니다.</p>
       {patients > 0 && (
         <div className="alert warn">
           부상·질병 {patients}명. 쉬게 하면 대체로 하루 사이 낫고, '치료' 업무를 맡기면 더 빨리 낫습니다. 의료실(진료 침대·약품 선반)이 있으면 치료가 잘 됩니다.
@@ -196,6 +200,14 @@ export default function SurvivorPanel({ state, run, setMode, ask }: Props) {
               <Bar label="건강" value={sv.health} />
               <Bar label="피로" value={sv.fatigue} invert />
               {!sv.isPlayer && <Bar label="사기" value={sv.morale} />}
+              {state.medicine > 0 && sv.health < 100 && (
+                <div className="btn-row">
+                  <button className="btn small" onClick={() => run({ type: "USE_MEDICINE", survivorId: sv.id }, `의약품 사용 · 건강 +${MEDICINE.heal}`)}>
+                    의약품 쓰기 (건강 +{MEDICINE.heal})
+                  </button>
+                  <span className="muted small-text">남은 의약품 {state.medicine}</span>
+                </div>
+              )}
               {!sv.isPlayer && (
                 <p className="small-text muted">
                   {moraleLabel(sv.morale)}

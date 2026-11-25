@@ -65,6 +65,7 @@ export function validateSave(data: any): data is GameState {
   if (!isInt(data.feastDay)) return false;
   if (!Array.isArray(data.explored) || data.explored.length !== data.map.length || !data.explored.every((r: any, y: number) => typeof r === "string" && r.length === data.map[y].length && /^[01]*$/.test(r)))
     return false;
+  if (!isInt(data.medicine) || data.medicine < 0 || !data.medicineFound || !isInt(data.medicineFound.day) || !isInt(data.medicineFound.count)) return false;
   if (!Array.isArray(data.goals) || !data.goals.every((g: any) => typeof g === "string")) return false;
   if (!data.stats || !isInt(data.stats.harvests) || !isInt(data.stats.expeditions) || !isInt(data.stats.raidsRepelled)) return false;
   if (data.cityDay !== null && !isInt(data.cityDay)) return false;
@@ -215,6 +216,8 @@ export function migrateSave(data: any): any {
         );
     data = { ...data, version: 12, explored };
   }
+  // 의약품 추가
+  if (data && data.version === 12) data = { ...data, version: 13, medicine: 0, medicineFound: { day: 0, count: 0 } };
   return data;
 }
 

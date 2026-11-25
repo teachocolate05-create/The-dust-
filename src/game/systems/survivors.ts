@@ -419,10 +419,6 @@ export function processNeeds(state: GameState, shortage: ResourceBundle): GameSt
     }
     health = Math.max(0, Math.min(100, health));
     fatigue = Math.max(0, Math.min(100, fatigue));
-    if (health <= 0 && !sv.isPlayer) {
-      s = log(s, `${sv.name}이(가) 버티지 못하고 거점을 떠났다.`, "warn");
-      continue;
-    }
     if (health < R.criticalHealth && sv.health >= R.criticalHealth) s = log(s, `${sv.name}의 상태가 위독하다!`, "warn");
     if (fatigue >= 100 && sv.fatigue < 100) s = log(s, `${sv.name}이(가) 탈진했다.`, "warn");
     out.push({ ...sv, health, fatigue });

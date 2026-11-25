@@ -8,7 +8,7 @@ import type { FacilityTypeId, GameState, Point, Rect, Room, RoomTypeId, TileType
 import { randomInt } from "../core/random";
 import { emptyExplored, fullExplored, updateExplored } from "../systems/vision";
 
-export const SAVE_VERSION = 12;
+export const SAVE_VERSION = 13;
 
 /** 확장 구역 안에 남아 있는 방 (구역을 열고 길을 뚫어야 쓸 수 있다) */
 export const ZONE_PRESET_ROOMS: PresetRoom[] = [
@@ -163,6 +163,8 @@ export function createInitialState(seed: number = Date.now() % 2147483647): Game
     cityDay: null,
     world: createWorld(),
     explored: emptyExplored(map.length, map[0].length),
+    medicine: 0,
+    medicineFound: { day: 0, count: 0 },
     log: [
       {
         day: 1,

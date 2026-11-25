@@ -52,6 +52,19 @@ export const CONDITIONS = {
   illness: ["감기", "장염", "폐렴"],
 };
 
+/** 의약품: 외부 활동 중 가끔 발견, 쓰면 건강 회복 */
+export const MEDICINE = {
+  /** 외부 행동·원정 귀환 때 발견 확률 */
+  findChance: 0.05,
+  /** 하루에 찾을 수 있는 최대 개수 */
+  dailyMax: 2,
+  /** 한 번 쓰면 회복하는 건강 */
+  heal: 5,
+};
+
+/** 생존자가 죽었을 때 남은 생존자 사기 감소 [최소, 최대] */
+export const DEATH_MORALE: [number, number] = [1, 5];
+
 export const LIFE_RULES = {
   // ── 부상·질병 ──
   /** 부상: 외부 업무·행동 불가(생존자), 작업 효율 배수 */

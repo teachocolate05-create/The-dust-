@@ -5,7 +5,7 @@
 //  - 관계: 같은 일을 하면 가까워지고, 다툼으로 멀어진다. 친구·앙숙은 사기에 영향
 //  - 생존자 간 사건: 하루가 지날 때 일정 확률로 일어난다
 
-import { CONDITIONS, LIFE_RULES as L, SOCIAL_EVENTS, TRAIT_BY_ID, TRAITS, type TraitDef } from "../config/life";
+import { CONDITIONS, DEATH_MORALE, LIFE_RULES as L, MEDICINE, SOCIAL_EVENTS, TRAIT_BY_ID, TRAITS, type TraitDef } from "../config/life";
 import { FACILITY_BY_ID } from "../config/facilities";
 import { RULES } from "../config/rules";
 import { JOB_BY_ID, type JobId } from "../config/survivors";
@@ -397,4 +397,67 @@ export function processLifeDay(state: GameState, bedsFor: number): { state: Game
     }
   }
   return { state: { ...s, seed }, events };
+}
+
+// ───────────── 의약품 ─────────────
+
+/** 외부 활동 중 의약품 발견 (5%, 하루 최대 2개) */
+export function tryFindMedicine(state: GameState): { state: GameState; found: boolean } {
+  const today = state.medicineFound.day === state.day ? state.medicineFound.count : 0;
+  if (today >= MEDICINE.dailyMax) return { state, found: false };
+  const [roll, seed] = nextRandom(state.seed);
+  if (roll >= MEDICINE.findChance) return { state: { ...state, seed }, found: false };
+  return {
+    state: { ...state, seed, medicine: state.medicine + 1, medicineFound: { day: state.day, count: today + 1 } },
+    found: true,
+  };
+}
+
+export function canUseMedicine(state: GameState, survivorId: string): string | null {
+  if (state.medicine <= 0) return "의약품이 없습니다.";
+  const sv = state.survivors.find((x) => x.id === survivorId);
+  if (!sv) return "생존자를 찾을 수 없습니다.";
+  if (sv.health >= 100) return "이미 건강합니다.";
+  return null;
+}
+
+export function useMedicine(state: GameState, survivorId: string): GameState {
+  if (canUseMedicine(state, survivorId)) return state;
+  const sv = state.survivors.find((x) => x.id === survivorId)!;
+  const s = {
+    ...state,
+    medicine: state.medicine - 1,
+    survivors: state.survivors.map((x) => (x.id === survivorId ? { ...x, health: Math.min(100, x.health + MEDICINE.heal) } : x)),
+  };
+  return log(s, `의약품을 써서 ${sv.isPlayer ? "내" : sv.name + "의"} 건강을 ${MEDICINE.heal} 회복했다. (남은 의약품 ${s.medicine})`, "build");
+}
+
+// ───────────── 사망 ─────────────
+
+/** 건강이 0이 된 생존자는 세상을 떠난다. 남은 사람들의 사기가 1~5 떨어진다 (플레이어는 게임 오버로 따로 처리) */
+export function processDeaths(state: GameState, mergeWithCurrentEvents: boolean): GameState {
+  const dead = state.survivors.filter((x) => !x.isPlayer && x.health <= 0);
+  if (!dead.length) return state;
+  let s: GameState = { ...state, survivors: state.survivors.filter((x) => x.isPlayer || x.health > 0) };
+  let seed = s.seed;
+  const events: GameEvent[] = [];
+  for (const d of dead) {
+    s = {
+      ...s,
+      survivors: s.survivors.map((x) => {
+        if (x.isPlayer) return x;
+        let loss: number;
+        [loss, seed] = randomInt(seed, DEATH_MORALE[0], DEATH_MORALE[1]);
+        return { ...x, morale: Math.max(0, x.morale - loss) };
+      }),
+    };
+    const text = `${d.name}이(가) 끝내 숨을 거두었다. 남은 사람들의 사기가 떨어졌다.`;
+    s = log({ ...s, seed }, text, "warn");
+    events.push({ id: "death", title: "생존자 사망", text, tone: "bad" });
+  }
+  s = { ...s, seed };
+  return {
+    ...s,
+    events: mergeWithCurrentEvents ? { serial: s.events.serial, list: [...s.events.list, ...events] } : { serial: s.events.serial + 1, list: events },
+  };
 }

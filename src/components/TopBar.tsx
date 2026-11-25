@@ -56,6 +56,11 @@ export default function TopBar({ state, cap, forecast, onOpenStatus, onNewGame }
           </span>
         )}
         {state.cityDay !== null && <span className="city-chip">독립 생존 거점</span>}
+        {state.medicine > 0 && (
+          <span className="pop-chip" title="의약품: 생존자 탭에서 써서 건강 +5">
+            의약품 <b>{state.medicine}</b>
+          </span>
+        )}
         <span className="pop-chip" title="인원 / 침상">
           인원 <b>{population(state)}</b>
           <span className="muted">/침상 {bedCount(state)}</span>

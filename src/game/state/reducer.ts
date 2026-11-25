@@ -8,6 +8,7 @@ import * as network from "../systems/network";
 import { checkGameOver } from "../systems/events";
 import { updateGoals } from "../systems/goals";
 import { updateExplored } from "../systems/vision";
+import { processDeaths, useMedicine } from "../systems/life";
 import { openZone } from "../systems/zones";
 import * as world from "../systems/world";
 import type { FactionId, RegionId } from "../config/world";
@@ -47,7 +48,8 @@ export type GameAction =
   | { type: "TRADE"; factionId: FactionId; index: number }
   | { type: "GIFT"; factionId: FactionId }
   | { type: "CLINIC"; survivorId: string }
-  | { type: "FEAST" };
+  | { type: "FEAST" }
+  | { type: "USE_MEDICINE"; survivorId: string };
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   // 게임 오버 후에는 새 게임·불러오기만 가능
@@ -59,8 +61,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   const shrink = action.type === "REMOVE_FACILITY" || action.type === "DELETE_ROOM" || action.type === "CHANGE_ROOM_TYPE";
   const checked = checkGameOver(shrink ? operation.enforceCapacity(next) : next);
   if (action.type === "NEW_GAME" || action.type === "LOAD") return checked;
+  // 건강이 0이 된 생존자는 세상을 떠난다
+  const alive = processDeaths(checked, checked.events.serial !== state.events.serial);
   // 열린 곳과 그 주변 한 칸을 지도에 드러낸다
-  const seen = updateExplored(checked);
+  const seen = updateExplored(alive);
   // 업데이트 5: 장기 목표 판정
   return updateGoals(seen, seen.events.serial !== state.events.serial);
 }
@@ -126,6 +130,8 @@ function applyAction(state: GameState, action: GameAction): GameState {
       return world.clinic(state, action.survivorId);
     case "FEAST":
       return world.feast(state);
+    case "USE_MEDICINE":
+      return useMedicine(state, action.survivorId);
     case "SET_CRAFT_TARGET":
       return state.craftTarget === action.target ? state : { ...state, craftTarget: action.target };
   }

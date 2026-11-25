@@ -7,7 +7,7 @@ import { nextRandom, randomInt } from "../core/random";
 import { bundleText, canAfford, missingText } from "../core/resources";
 import type { Check, Expedition, GameEvent, GameState, LogEntry, ResourceBundle, ResourceId, Survivor, WorldState } from "../core/types";
 import { computeAccess } from "./access";
-import { addCondition, hurtMultiplier, isInjured, lifeWorkMultiplier } from "./life";
+import { addCondition, hurtMultiplier, isInjured, lifeWorkMultiplier, tryFindMedicine } from "./life";
 import { addCapped } from "./operation";
 import { canModifyBase, NOT_MAINTENANCE_REASON } from "./phase";
 
@@ -194,11 +194,15 @@ export function processExpeditions(state: GameState): { state: GameState; events
       s = setFaction(s, r.faction, (f) => ({ ...f, contacted: true }));
       contact = ` ${FACTION_BY_ID[r.faction].name}과(와) 처음 마주쳤다 (${factionAttitude(s.world.factions[r.faction].relation)}).`;
     }
+    const med = tryFindMedicine({ ...s, seed });
+    s = med.state;
+    seed = s.seed;
     const text =
       `${r.name} 원정대가 돌아왔다. ${Object.keys(gained).length ? `획득: ${bundleText(gained)}.` : "빈손이었다."}` +
       (Object.keys(capped.lost).length ? ` (저장 공간 부족으로 ${bundleText(capped.lost)} 버림)` : "") +
       (hurtNames.length ? ` ${hurtNames.join(", ")} 부상.` : "") +
       (found.length ? ` 새 지역 발견: ${found.join(", ")}.` : "") +
+      (med.found ? " 의약품 1개도 찾아왔다." : "") +
       contact;
     s = log(s, `[원정] ${text}`, "event");
     s = { ...s, stats: { ...s.stats, expeditions: s.stats.expeditions + 1 } };

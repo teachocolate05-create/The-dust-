@@ -153,6 +153,10 @@ export interface GameState {
   cityDay: number | null;
   /** 탐색한 칸 (행마다 "0"/"1" 문자열). 한 번 본 칸은 지도에 남는다 */
   explored: string[];
+  /** 가진 의약품 개수 */
+  medicine: number;
+  /** 의약품을 찾은 날과 그날 찾은 개수 (하루 최대치 판정) */
+  medicineFound: { day: number; count: number };
 }
 
 export interface WorldState {

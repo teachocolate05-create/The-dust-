@@ -67,9 +67,9 @@ export const SURVIVOR_RULES = {
   /** 능력치 숙련: 같은 업무를 (기본 + 능력치 × 배수) 구간 하면 능력치 +1 (업데이트 5) */
   xpBase: 4,
   xpPerLevel: 3,
-  /** 쉬면(생존자 '휴식' 업무, 플레이어 '휴식' 행동) 이 확률로 건강 +1~3 */
+  /** 쉬면(생존자 '휴식' 업무, 플레이어 '휴식' 행동) 이 확률로 건강 +1~5 */
   restHealChance: 0.6,
-  restHealthGain: 3,
+  restHealthGain: 5,
   /** 플레이어 '휴식' 행동: 피로 감소 */
   playerRestFatigue: 10,
   /** 밤잠: 이 확률로 건강 +1~2 (침상 / 바닥) */

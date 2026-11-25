@@ -70,7 +70,7 @@ const base = {
 export const FACILITIES: FacilityDef[] = [
   // 거주실
   { ...base, id: "cot", name: "간이 침상", w: 2, h: 1, room: "residence", cost: { materials: 4 }, beds: 1, glyph: "침상", desc: "낡은 매트를 깐 1인용 침상." },
-  { ...base, id: "bunk", name: "이층 침대", w: 2, h: 2, room: "residence", cost: { materials: 10, parts: 2 }, beds: 2, glyph: "2층", desc: "공간을 아끼는 2인용 침대." },
+  { ...base, id: "bunk", name: "이층 침대", w: 1, h: 2, room: "residence", cost: { materials: 10, parts: 2 }, beds: 2, glyph: "2층", desc: "공간을 아끼는 2인용 침대." },
   { ...base, id: "locker", name: "사물함", w: 1, h: 1, room: "residence", cost: { materials: 3 }, storage: { food: 3, parts: 3 }, glyph: "함", desc: "개인 물품과 비상식량을 보관합니다." },
   // 창고
   { ...base, id: "shelf", name: "보관 선반", w: 2, h: 1, room: "storage", cost: { materials: 5 }, storage: { materials: 15, parts: 10 }, glyph: "선반", desc: "자재와 부품을 쌓아 두는 선반." },

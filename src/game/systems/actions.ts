@@ -14,7 +14,7 @@ import { doPlayerRest, doRescue, doSearch, rescueBlockReason, searchBlockReason 
 import { SURVIVOR_RULES } from "../config/survivors";
 import { THREAT_RULES } from "../config/events";
 import { LIFE_RULES } from "../config/life";
-import { isInjured } from "./life";
+import { isInjured, tryFindMedicine } from "./life";
 import { canEncourage, doEncourage, doSurfaceScout } from "./world";
 import { WORLD_RULES } from "../config/world";
 import { clearThreatChance, doClearThreat, doSurvey, maybeDiscoverPlace, nextSurveyTarget, threatInjury } from "./events";
@@ -124,7 +124,7 @@ export function canDoAction(state: GameState, id: ActionId, target?: ActionTarge
     return { ok: true, cost: {}, preview: `${p.survivor.name}을(를) 데려온다` };
   }
 
-  if (id === "rest") return { ok: true, cost: {}, preview: `피로 -10 · 60% 확률로 건강 +1~3` };
+  if (id === "rest") return { ok: true, cost: {}, preview: `피로 -10 · 60% 확률로 건강 +1~5` };
   if (id === "surfaceScout") return { ok: true, cost: {}, preview: `새 지역 발견 확률 ${Math.round(WORLD_RULES.scoutChance * 100)}%${nightNote}` };
   if (id === "encourage") {
     const why = canEncourage(state);
@@ -246,6 +246,13 @@ export function doAction(state: GameState, id: ActionId, target?: ActionTarget):
     text = `작업대에서 ${recipe.name}을(를) 마쳤다.`;
   }
 
+  // 외부 활동 중 가끔 의약품을 찾는다 (5%, 하루 최대 2개)
+  if (def.outside) {
+    const med = tryFindMedicine({ ...s, seed });
+    s = med.state;
+    seed = s.seed;
+    if (med.found) text += ` 쓸 만한 의약품도 하나 챙겼다! (의약품 ${s.medicine}개)`;
+  }
   // 위협이 있으면 밖에서 다칠 수 있다
   if (def.outside && id !== "clearThreat" && s.threat) {
     const inj = threatInjury({ ...s, seed }, "player", THREAT_RULES.actionInjuryChance, THREAT_RULES.actionInjuryDamage);

@@ -91,7 +91,7 @@ export const ACTIONS: ActionDef[] = [
     id: "rest",
     name: "휴식",
     category: "생존",
-    desc: "잠시 쉬며 숨을 고른다. 피로 -10, 60% 확률로 건강 +1~3.",
+    desc: "잠시 쉬며 숨을 고른다. 피로 -10, 60% 확률로 건강 +1~5.",
     outside: false,
     implemented: true,
   },
